@@ -1,0 +1,7 @@
+{
+    "name": "m2",
+    "scripts": {
+      "test": "jest",
+      "build": "tsc -p tsconfig.lib.json" // the actual command here is arbitrary
+    }
+  }

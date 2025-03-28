@@ -1,0 +1,42 @@
+version: '3'
+
+services:
+  traefik:
+    image: traefik:v2.5
+    command: 
+      -"--api.insecure=true"
+      -"--providers.docker=true"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    
+  deployment-engine:
+    build: ./apps/deployment-engine
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  dashboard:
+    build: ./apps/dashboard
+    ports:
+      - "3000:3000"
+
+  m1:
+    build: ./apps/m1
+    labels:
+      - "traefik.http.routers.m1.rule=PathPrefix('/m1')"
+
+  m2:
+    build: ./apps/m2
+    labels:
+      - "traefik.http.routers.m2.rule=PathPrefix('/m2')"
+
+  m3:
+    build: ./apps/m3
+    labels:
+      - "traefik.http.routers.m3.rule=PathPrefix('/m3')"
+
+
+  
+        
