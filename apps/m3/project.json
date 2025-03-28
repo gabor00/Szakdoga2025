@@ -1,7 +1,21 @@
 {
-    "name": "m3",
-    "scripts": {
-      "test": "jest",
-      "build": "tsc -p tsconfig.lib.json" // the actual command here is arbitrary
+  "name": "m3",
+  "targets": {
+    "docker-build": {
+      "executor": "@nx-tools/nx-container:build",
+      "options": {
+        "dockerFile": "Dockerfile",
+        "context": "apps/m3",
+        "push": false,
+        "tags": ["m3"]
+      }
+    },
+    "docker-run": {
+      "executor": "@nx-tools/nx-container:run",
+      "options": {
+        "image": "m3",
+        "ports": ["8000:8000"]
+      }
     }
+  }
   }
