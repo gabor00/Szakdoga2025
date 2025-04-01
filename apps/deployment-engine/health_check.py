@@ -8,9 +8,9 @@ logger = logging.getLogger(__name__)
 
 # Service registry - in production this would likely come from a configuration file or database
 services: Dict[str, Dict] = {
-    "m1": {"url": "http://m1:8000", "threshold": 3},
-    "m2": {"url": "http://m2:8080", "threshold": 3},
-    "m3": {"url": "http://m3:8000", "threshold": 3}
+    "m1": {"url": "http://m1:8001", "threshold": 3},
+    "m2": {"url": "http://m2:8002", "threshold": 3},
+    "m3": {"url": "http://m3:8003", "threshold": 3}
 }
 
 # Keep track of consecutive failures

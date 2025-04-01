@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 import uvicorn
 
-app = FastAPI()
+app = FastAPI(title='m1')
 
 @app.get("/health")
 def health_check():
@@ -12,4 +12,4 @@ def read_root():
     return {"message": "Microservice 1"}
 
 if __name__ == '__main__':
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8001, reload= True)
