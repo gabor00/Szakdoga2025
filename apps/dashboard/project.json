@@ -1,0 +1,60 @@
+{
+    "name": "dashboard",
+    "$schema": "../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "apps/dashboard",
+    "projectType": "application",
+    "targets": {
+      "build": {
+        "executor": "@nx/next:build",
+        "outputs": ["./dist/apps/dashboard"],
+        "defaultConfiguration": "production",
+        "options": {
+          "outputPath": "dist/apps/dashboard"
+        },
+        "configurations": {
+          "development": {
+            "optimization": false,
+            "sourceMap": true,
+            "extractCss": true
+          },
+          "production": {
+            "optimization": true,
+            "sourceMap": false,
+            "extractCss": true
+          }
+        }
+      },
+      "serve": {
+        "executor": "@nx/next:server",
+        "defaultConfiguration": "development",
+        "options": {
+          "buildTarget": "dashboard:build",
+          "port": 3000
+        },
+        "configurations": {
+          "development": {
+            "buildTarget": "dashboard:build:development"
+          },
+          "production": {
+            "buildTarget": "dashboard:build:production"
+          }
+        }
+      },
+      "test": {
+        "executor": "@nrwl/jest:jest",
+        "outputs": ["coverage/apps/dashboard"],
+        "options": {
+          "jestConfig": "./apps/dashboard/jest.config.js",
+          "passWithNoTests": true
+        }
+      },
+      "lint": {
+        "executor": "@nrwl/linter:eslint",
+        "options": {
+          "lintFilePatterns": ["apps/dashboard/**/*.ts", "apps/dashboard/**/*.tsx"]
+        }
+      }
+    },
+    "tags": []
+  }
+  

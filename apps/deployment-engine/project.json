@@ -1,0 +1,57 @@
+{
+    "name": "deployment-engine",
+    "$schema": "../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "apps/deployment-engine",
+    "projectType": "application",
+    "targets": {
+      "build": {
+        "executor": "@nx/node:build",
+        "outputs": ["./dist/apps/deployment-engine"],
+        "options": {
+          "outputPath": "./apps/deployment-engine"
+        },
+        "configurations": {
+          "development": {
+            "optimization": false,
+            "sourceMap": true
+          },
+          "production": {
+            "optimization": true,
+            "sourceMap": false
+          }
+        }
+      },
+      "serve": {
+        "executor": "@nx/node:execute",
+        "defaultConfiguration": "development",
+        "options": {
+          "buildTarget": "deployment-engine:build",
+          "port": 4000
+        },
+        "configurations": {
+          "development": {
+            "buildTarget": "deployment-engine:build:development"
+          },
+          "production": {
+            "buildTarget": "deployment-engine:build:production"
+          }
+        }
+      },
+      "test": {
+        "executor": "@nrwl/jest:jest",
+        "outputs": ["coverage/apps/deployment-engine"],
+        "options": {
+          "jestConfig": "./apps/deployment-engine/jest.config.js",
+          "passWithNoTests": true
+        }
+      },
+      "lint": {
+        "executor": "@nrwl/linter:eslint",
+        "options": {
+          "lintFilePatterns": ["apps/deployment-engine/**/*.ts"]
+        }
+      }
+    },
+    "tags": ["backend", "deployment"]
+  }
+  
