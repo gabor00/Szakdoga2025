@@ -1,59 +1,57 @@
 {
-    "name": "dashboard",
+    "name": "deployment-engine",
     "$schema": "../node_modules/nx/schemas/project-schema.json",
-    "sourceRoot": "apps/dashboard",
+    "sourceRoot": "apps/deployment-engine",
     "projectType": "application",
     "targets": {
       "build": {
-        "executor": "@nx/next:build",
-        "outputs": ["./dist/apps/dashboard"],
-        "defaultConfiguration": "production",
+        "executor": "@nx/node:build",
+        "outputs": ["./dist/apps/deployment-engine"],
         "options": {
-          "outputPath": "dist/apps/dashboard"
+          "outputPath": "./apps/deployment-engine"
         },
         "configurations": {
           "development": {
             "optimization": false,
-            "sourceMap": true,
-            "extractCss": true
+            "sourceMap": true
           },
           "production": {
             "optimization": true,
-            "sourceMap": false,
-            "extractCss": true
+            "sourceMap": false
           }
         }
       },
       "serve": {
-        "executor": "@nx/next:server",
+        "executor": "@nx/node:execute",
         "defaultConfiguration": "development",
         "options": {
-          "buildTarget": "dashboard:build",
-          "port": 3000
+          "buildTarget": "deployment-engine:build",
+          "port": 4000
         },
         "configurations": {
           "development": {
-            "buildTarget": "dashboard:build:development"
+            "buildTarget": "deployment-engine:build:development"
           },
           "production": {
-            "buildTarget": "dashboard:build:production"
+            "buildTarget": "deployment-engine:build:production"
           }
         }
       },
       "test": {
         "executor": "@nrwl/jest:jest",
-        "outputs": ["coverage/apps/dashboard"],
+        "outputs": ["coverage/apps/deployment-engine"],
         "options": {
-          "jestConfig": "./apps/dashboard/jest.config.js",
+          "jestConfig": "./apps/deployment-engine/jest.config.js",
           "passWithNoTests": true
         }
       },
       "lint": {
         "executor": "@nrwl/linter:eslint",
         "options": {
-          "lintFilePatterns": ["apps/dashboard/**/*.ts", "apps/dashboard/**/*.tsx"]
+          "lintFilePatterns": ["apps/deployment-engine/**/*.ts"]
         }
       }
-    }
+    },
+    "tags": ["backend", "deployment"]
   }
   
