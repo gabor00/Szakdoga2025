@@ -6,10 +6,10 @@
     "targets": {
       "build": {
         "executor": "@nx/next:build",
-        "outputs": ["./dist/apps/dashboard"],
+        "outputs": ["./apps/dashboard"],
         "defaultConfiguration": "production",
         "options": {
-          "outputPath": "dist/apps/dashboard"
+          "outputPath": "./apps/dashboard"
         },
         "configurations": {
           "development": {
@@ -42,7 +42,7 @@
       },
       "test": {
         "executor": "@nrwl/jest:jest",
-        "outputs": ["coverage/apps/dashboard"],
+        "outputs": ["./apps/dashboard"],
         "options": {
           "jestConfig": "./apps/dashboard/jest.config.js",
           "passWithNoTests": true
