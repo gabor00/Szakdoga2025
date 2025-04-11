@@ -1,42 +1,61 @@
 version: '3'
 
+networks:
+  app_network:
+    driver: bridge
+
 services:
   traefik:
     image: traefik:v2.5
-    command: 
-      -"--api.insecure=true"
-      -"--providers.docker=true"
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
     ports:
       - "80:80"
       - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - app_network
     
   deployment-engine:
     build: ./apps/deployment-engine
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-
-  dashboard:
-    build: ./apps/dashboard
-    ports:
-      - "3000:3000"
+    depends_on:
+      - traefik
+    networks:
+      - app_network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.deployment-engine.rule=PathPrefix(`/api/deploy`)"
+      - "traefik.http.services.deployment-engine.loadbalancer.server.port=4000"
 
   m1:
     build: ./apps/m1
+    networks:
+      - app_network
     labels:
-      - "traefik.http.routers.m1.rule=PathPrefix('/m1')"
+      - "traefik.enable=true"
+      - "traefik.http.routers.m1.rule=PathPrefix(`/m1`)"
+      - "traefik.http.services.m1.loadbalancer.server.port=8000"
 
   m2:
     build: ./apps/m2
+    networks:
+      - app_network
     labels:
-      - "traefik.http.routers.m2.rule=PathPrefix('/m2')"
+      - "traefik.enable=true"
+      - "traefik.http.routers.m2.rule=PathPrefix(`/m2`)"
+      - "traefik.http.services.m2.loadbalancer.server.port=8080"
 
   m3:
     build: ./apps/m3
+    networks:
+      - app_network
     labels:
-      - "traefik.http.routers.m3.rule=PathPrefix('/m3')"
-
-
-  
-        
+      - "traefik.enable=true"
+      - "traefik.http.routers.m3.rule=PathPrefix(`/m3`)"
+      - "traefik.http.services.m3.loadbalancer.server.port=8000"

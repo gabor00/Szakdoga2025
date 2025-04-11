@@ -3,7 +3,7 @@ import subprocess
 def get_git_tags():
     try:
         tags = subprocess.check_output(['git','tag']).decode('utf-8').split('\n')
-        return [tag for tag in tags if tag.startswitch('release- ')]
+        return [tag for tag in tags if tag.startswitch('release-')]
     except Exception as e:
         return str(e)
     

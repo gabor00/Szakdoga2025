@@ -1,11 +1,15 @@
-from fastapi import FastAPI 
+from fastapi import FastAPI, HTTPException
+import uvicorn
 
 app = FastAPI()
 
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
 @app.get("/")
 def read_root():
-    return {"Hello": "World"}
+    return {"message": "Microservice 1"}
 
-@app.get("/health")
-def healt_check():
-    return {"status": "health"}
+if __name__ == '__main__':
+    uvicorn.run(app, host="0.0.0.0", port=8001)

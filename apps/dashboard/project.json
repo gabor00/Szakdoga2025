@@ -1,0 +1,26 @@
+{
+    "name": "dashboard",
+    "$schema": "node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": ".",
+    "projectType": "application",
+    "targets": {
+        "build": {
+            "executor": "@nx/next:build",
+            "outputs": ["/apps"],
+            "defaultConfiguration": "production",
+            "options": {
+            "outputPath": "/dashboard"
+            }
+        },
+    
+        "serve": {
+            "executor": "@nx/next:server",
+            "defaultConfiguration": "production",
+            "options": {
+            "buildTarget": "dashboard:build",
+            "dev": true
+      }
+    }
+    
+  }
+    }
