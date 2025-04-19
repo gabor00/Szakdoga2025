@@ -17,7 +17,7 @@
           },
           "production": {
             "optimization": true,
-            "sourceMap": false,
+            "sourceMap": true,
             "extractCss": true
           }
         }
@@ -40,7 +40,7 @@
       },
       "test": {
         "executor": "@nx/jest:jest",
-        "outputs": ["{workspaceRoot}/dist"],
+        "outputs": ["/dist"],
         "options": {
           "jestConfig": "./apps/dashboard/jest.config.js",
           "passWithNoTests": true
