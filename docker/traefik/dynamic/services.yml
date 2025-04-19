@@ -1,0 +1,102 @@
+# docker/traefik/dynamic/services.yml
+http:
+  routers:
+    microservice1-blue:
+      rule: "PathPrefix(`/api/service1`) && Headers(`X-Deployment-Slot`, `blue`)"
+      service: microservice1-blue
+      middlewares:
+        - "strip-prefix"
+    
+    microservice1-green:
+      rule: "PathPrefix(`/api/service1`) && Headers(`X-Deployment-Slot`, `green`)"
+      service: microservice1-green
+      middlewares:
+        - "strip-prefix"
+    
+    microservice2-blue:
+      rule: "PathPrefix(`/api/service2`) && Headers(`X-Deployment-Slot`, `blue`)"
+      service: microservice2-blue
+      middlewares:
+        - "strip-prefix"
+    
+    microservice2-green:
+      rule: "PathPrefix(`/api/service2`) && Headers(`X-Deployment-Slot`, `green`)"
+      service: microservice2-green
+      middlewares:
+        - "strip-prefix"
+    
+    microservice3-blue:
+      rule: "PathPrefix(`/api/service3`) && Headers(`X-Deployment-Slot`, `blue`)"
+      service: microservice3-blue
+      middlewares:
+        - "strip-prefix"
+
+    microservice3-green:
+      rule: "PathPrefix(`/api/service3`) && Headers(`X-Deployment-Slot`, `green`)"
+      service: microservice3-green
+      middlewares:
+        - "strip-prefix"
+    
+    dashboard:
+      rule: "PathPrefix(`/`)"
+      service: dashboard
+    
+    deployment-engine:
+      rule: "PathPrefix(`/api/deploy`)"
+      service: deployment-engine
+      middlewares:
+        - "strip-deploy-prefix"
+
+  services:
+    microservice1-blue:
+      loadBalancer:
+        servers:
+          - url: "http://microservice1-blue:8000"
+    
+    microservice1-green:
+      loadBalancer:
+        servers:
+          - url: "http://microservice1-green:8000"
+    
+    microservice2-blue:
+      loadBalancer:
+        servers:
+          - url: "http://microservice2-blue:8000"
+    
+    microservice2-green:
+      loadBalancer:
+        servers:
+          - url: "http://microservice2-green:8000"
+    
+    microservice3-blue:
+      loadBalancer:
+        servers:
+          - url: "http://microservice3-blue:8000"
+    
+    microservice3-green:
+      loadBalancer:
+        servers:
+          - url: "http://microservice3-green:8000"
+    
+    dashboard:
+      loadBalancer:
+        servers:
+          - url: "http://dashboard:3000"
+    
+    deployment-engine:
+      loadBalancer:
+        servers:
+          - url: "http://deployment-engine:8000"
+
+  middlewares:
+    strip-prefix:
+      stripPrefix:
+        prefixes:
+          - "/api/service1"
+          - "/api/service2"
+          - "/api/service3"
+    
+    strip-deploy-prefix:
+      stripPrefix:
+        prefixes:
+          - "/api/deploy"

@@ -1,0 +1,154 @@
+
+
+services:
+  # Load Balancer
+  traefik:
+    image: traefik:v2.9
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"     # Web entrypoint
+      - "8080:8080" # Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./docker/traefik/dynamic:/etc/traefik/dynamic
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+    networks:
+      - traefik-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.traefik.service=api@internal"
+
+  # Blue Slot Services
+  microservice1-blue:
+    build:
+      context: ../apps/m1
+      dockerfile: Dockerfile
+    networks:
+      - traefik-network
+    environment:
+      - SERVICE_VERSION=0.1.0
+      - DEPLOYMENT_SLOT=blue
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.microservice1-blue.rule=PathPrefix(`/api/service1`) && Headers(`X-Deployment-Slot`, `blue`)"
+      - "traefik.http.services.microservice1-blue.loadbalancer.server.port=8000"
+
+  microservice2-blue:
+    build:
+      context: ../apps/m2
+      dockerfile: Dockerfile
+    networks:
+      - traefik-network
+    environment:
+      - SERVICE_VERSION=0.1.0
+      - DEPLOYMENT_SLOT=blue
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.microservice2-blue.rule=PathPrefix(`/api/service2`) && Headers(`X-Deployment-Slot`, `blue`)"
+      - "traefik.http.services.microservice2-blue.loadbalancer.server.port=8000"
+
+  microservice3-blue:
+    build:
+      context: ../apps/m3
+      dockerfile: Dockerfile
+    networks:
+      - traefik-network
+    environment:
+      - SERVICE_VERSION=0.1.0
+      - DEPLOYMENT_SLOT=blue
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.microservice3-blue.rule=PathPrefix(`/api/service3`) && Headers(`X-Deployment-Slot`, `blue`)"
+      - "traefik.http.services.microservice3-blue.loadbalancer.server.port=8000"
+
+  # Green Slot Services
+  microservice1-green:
+    build:
+      context: ../apps/m1
+      dockerfile: Dockerfile
+    networks:
+      - traefik-network
+    environment:
+      - SERVICE_VERSION=0.1.0
+      - DEPLOYMENT_SLOT=green
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.microservice1-green.rule=PathPrefix(`/api/service1`) && Headers(`X-Deployment-Slot`, `green`)"
+      - "traefik.http.services.microservice1-green.loadbalancer.server.port=8000"
+
+  microservice2-green:
+    build:
+      context: ../apps/m2
+      dockerfile: Dockerfile
+    networks:
+      - traefik-network
+    environment:
+      - SERVICE_VERSION=0.1.0
+      - DEPLOYMENT_SLOT=green
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.microservice2-green.rule=PathPrefix(`/api/service2`) && Headers(`X-Deployment-Slot`, `green`)"
+      - "traefik.http.services.microservice2-green.loadbalancer.server.port=8000"
+
+  microservice3-green:
+    build:
+      context: ../apps/m3
+      dockerfile: Dockerfile
+    networks:
+      - traefik-network
+    environment:
+      - SERVICE_VERSION=0.1.0
+      - DEPLOYMENT_SLOT=green
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.microservice3-green.rule=PathPrefix(`/api/service3`) && Headers(`X-Deployment-Slot`, `green`)"
+      - "traefik.http.services.microservice3-green.loadbalancer.server.port=8000"
+
+  # Deployment Engine
+  deployment-engine:
+    build:
+      context: ../apps/deployment-engine
+      dockerfile: Dockerfile
+    networks:
+      - traefik-network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/app/repo
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.deployment-engine.rule=PathPrefix(`/api/deploy`)"
+      - "traefik.http.middlewares.strip-deploy-prefix.stripprefix.prefixes=/api/deploy"
+      - "traefik.http.routers.deployment-engine.middlewares=strip-deploy-prefix"
+      - "traefik.http.services.deployment-engine.loadbalancer.server.port=8000"
+
+  # Dashboard
+  dashboard:
+    build:
+      context: ../apps/dashboard
+      dockerfile: Dockerfile
+    container_name: dashboard
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost/api/deployment
+    networks:
+      - microservices-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.dashboard.entrypoints=web"
+      - "traefik.http.services.dashboard.loadbalancer.server.port=3000"
+      - "traefik.http.routers.dashboard.priority=1" # Lower priority for catch-all route
+
+
+networks:
+  traefik-network:
+    driver: bridge
+  microservices-network:
+    driver: bridge

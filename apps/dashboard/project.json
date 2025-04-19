@@ -5,12 +5,10 @@
     "projectType": "application",
     "targets": {
       "build": {
-        "executor": "@nx/next:build",
-        "outputs": ["./apps/dashboard"],
+        "executor": "@nx-dotnet/core:build",
+        "outputs": ["{workspaceRoot}/dist/apps/dashboard"],
         "defaultConfiguration": "production",
-        "options": {
-          "outputPath": "./apps/dashboard"
-        },
+        
         "configurations": {
           "development": {
             "optimization": false,
@@ -25,7 +23,7 @@
         }
       },
       "serve": {
-        "executor": "@nx/next:server",
+        "executor": "@nx-dotnet/core:server",
         "defaultConfiguration": "development",
         "options": {
           "buildTarget": "dashboard:build",
@@ -42,7 +40,7 @@
       },
       "test": {
         "executor": "@nrwl/jest:jest",
-        "outputs": ["./apps/dashboard"],
+        "outputs": ["apps/dashboard"],
         "options": {
           "jestConfig": "./apps/dashboard/jest.config.js",
           "passWithNoTests": true

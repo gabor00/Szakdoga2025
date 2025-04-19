@@ -1,11 +1,19 @@
 {
     "name": "m1",
     "targets": {
+      "build":{
+        "executor": "@nx/js:tsc",
+        "options": {
+        }
+      },
+      "run":{
+
+      },
       "docker-build": {
         "executor": "@nx-tools/nx-container:build",
         "options": {
           "dockerFile": "Dockerfile",
-          "context": "apps/m1",
+          "context": "./apps/m1",
           "push": false,
           "tags": ["m1"]
         }
@@ -14,7 +22,7 @@
         "executor": "@nx-tools/nx-container:run",
         "options": {
           "image": "m1",
-          "ports": ["8000:8000"]
+          "ports": ["8000:8080"]
         }
       }
     }

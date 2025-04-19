@@ -1,6 +1,14 @@
 {
   "name": "m3",
   "targets": {
+    "build":{
+      "executor": "@nx/js:tsc",
+      "options": {
+      }
+    },
+    "run":{
+
+    },
     "docker-build": {
       "executor": "@nx-tools/nx-container:build",
       "options": {
