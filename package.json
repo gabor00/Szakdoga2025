@@ -11,6 +11,7 @@
     "@nx-dotnet/core": "^2.5.0",
     "@nx-tools/nx-container": "^6.2.0",
     "@nx/esbuild": "^20.8.0",
+    "@nx/eslint": "^20.8.0",
     "@nx/jest": "^20.8.0",
     "@nx/js": "^20.8.0",
     "@nx/linter": "^19.8.4",
