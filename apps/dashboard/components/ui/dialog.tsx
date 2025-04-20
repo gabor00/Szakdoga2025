@@ -5,13 +5,13 @@ import { X } from "lucide-react";
 export interface DialogProps {
   open?: boolean;
   defaultOpen?: boolean;
-  onOpenChange?: (open: boolean) => void;
+  onOpenChange?: (_open: boolean) => void;
   children: React.ReactNode;
 }
 
 export interface DialogContext {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (_open: boolean) => void;
 }
 
 const DialogContext = React.createContext<DialogContext | null>(null);
@@ -94,8 +94,8 @@ DialogTrigger.displayName = "DialogTrigger";
 
 export interface DialogContentProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
-  onEscapeKeyDown?: (event: KeyboardEvent) => void;
-  onPointerDownOutside?: (event: PointerEvent) => void;
+  onEscapeKeyDown?: (_event: KeyboardEvent) => void;
+  onPointerDownOutside?: (_event: PointerEvent) => void;
 }
 
 const DialogContent = React.forwardRef<HTMLDivElement, DialogContentProps>(

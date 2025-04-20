@@ -17,7 +17,7 @@ export interface SelectOptionProps {
 export interface SelectProps {
   value?: string;
   defaultValue?: string;
-  onValueChange?: (value: string) => void;
+  onValueChange?: (_value: string) => void;
   disabled?: boolean;
   name?: string;
   placeholder?: string;
@@ -237,8 +237,8 @@ SelectValue.displayName = "SelectValue";
 // Context for Select component
 interface SelectContextValue {
   value?: string;
-  onValueChange?: (value: string) => void;
-  setIsOpen: (isOpen: boolean) => void;
+  onValueChange?: (_value: string) => void;
+  setIsOpen: (_isOpen: boolean) => void;
 }
 
 const SelectContext = React.createContext<SelectContextValue | null>(null);

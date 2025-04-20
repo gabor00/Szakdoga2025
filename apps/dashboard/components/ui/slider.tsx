@@ -8,8 +8,8 @@ export interface SliderProps extends React.HTMLAttributes<HTMLDivElement> {
   max?: number;
   step?: number;
   disabled?: boolean;
-  onValueChange?: (value: number[]) => void;
-  onValueCommit?: (value: number[]) => void;
+  onValueChange?: (_value: number[]) => void;
+  onValueCommit?: (_value: number[]) => void;
   orientation?: "horizontal" | "vertical";
   inverted?: boolean;
   showValueLabel?: boolean;

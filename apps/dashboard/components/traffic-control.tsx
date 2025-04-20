@@ -9,7 +9,7 @@ import { toast } from '../components/ui/use-toast';
 
 // Define types
 type TrafficControlProps = {
-  onUpdateTraffic: (serviceName: string, blueWeight: number, greenWeight: number) => Promise<void>;
+  onUpdateTraffic: (_serviceName: string, _blueWeight: number, _greenWeight: number) => Promise<void>;
 };
 
 export function TrafficControl({ onUpdateTraffic }: TrafficControlProps) {

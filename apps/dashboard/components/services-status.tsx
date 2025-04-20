@@ -21,7 +21,7 @@ type ServiceStatus = {
 };
 
 type ServicesStatusProps = {
-  onRestartService: (serviceName: string, slot: string) => Promise<void>;
+  onRestartService: (_serviceName: string, _slot: string) => Promise<void>;
 };
 
 export function ServicesStatus({ onRestartService }: ServicesStatusProps) {

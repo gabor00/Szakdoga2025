@@ -1,5 +1,5 @@
 // components/ui/use-toast.ts
-import { useEffect, useState } from "react"
+import { useEffect, useState } from "react";
 
 import type {
   ToastActionElement,
@@ -115,7 +115,7 @@ const reducer = (state: State, action: Action): State => {
   }
 }
 
-const listeners: ((state: State) => void)[] = []
+const listeners: ((_state: State) => void)[] = []
 
 let memoryState: State = { toasts: [] }
 

@@ -28,7 +28,7 @@ type Release = {
 };
 
 type ReleasesListProps = {
-  onDeployRelease: (serviceName: string, tag: string) => Promise<void>;
+  onDeployRelease: (_serviceName: string, _tag: string) => Promise<void>;
 };
 
 export function ReleasesList({ onDeployRelease }: ReleasesListProps) {
