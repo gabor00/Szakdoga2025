@@ -1,4 +1,5 @@
 // components/ui/use-toast.ts
+"use client"
 import { useEffect, useState } from "react";
 
 import type {

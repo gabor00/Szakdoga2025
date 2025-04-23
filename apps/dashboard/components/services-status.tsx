@@ -33,7 +33,7 @@ export function ServicesStatus({ onRestartService }: ServicesStatusProps) {
   const fetchServicesStatus = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/deployment/services');
+      const response = await fetch('api/services/fetchReleases');
       const data = await response.json();
       setServices(data);
     } catch (error) {

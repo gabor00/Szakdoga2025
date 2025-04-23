@@ -48,7 +48,7 @@ class GitWatcher:
         
         changes = {
             'm1': False,
-            'mi2': False,
+            'm2': False,
             'm3': False,
             'dashboard': False,
             'deployment-engine': False

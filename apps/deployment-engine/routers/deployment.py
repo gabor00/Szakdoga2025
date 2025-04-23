@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 docker_manager = DockerManager()
-git_watcher = GitWatcher()
+git_watcher = GitWatcher('C:\Users\Gabor00\Documents\GitHub\Szakdoga2025')
 
 # Models
 class DeploymentRequest(BaseModel):

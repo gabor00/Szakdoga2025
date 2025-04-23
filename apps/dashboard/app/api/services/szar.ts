@@ -1,11 +1,11 @@
 // apps/dashboard/services/api.ts
-import { toast } from '../components/ui/use-toast';
+import { toast } from '../../../components/ui/use-toast';
 
 // Base URL for deployment API
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://deployment-engine:8000';
 
 // Error handler
-const handleApiError = (error: unknown) => {
+export const handleApiError = (error: unknown) => {
   console.error('API Error:', error);
   let errorMessage = 'Unknown error occurred';
   
