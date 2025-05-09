@@ -9,13 +9,13 @@ import { toast } from '../components/ui/use-toast';
 
 // Define types
 type TrafficControlProps = {
-  onUpdateTraffic: (_serviceName: string, _blueWeight: number, _greenWeight: number) => Promise<void>;
+  onUpdateTraffic: (_serviceName: string, _blueWeight: number, _greenWeight: number) => Promise<any>;
 };
 
 export function TrafficControl({ onUpdateTraffic }: TrafficControlProps) {
-  const [selectedService, setSelectedService] = useState<string>('microservice-1');
-  const [blueWeight, setBlueWeight] = useState<number>(100);
-  const [updating, setUpdating] = useState<boolean>(false);
+  const [selectedService, setSelectedService] = useState('m1');
+  const [blueWeight, setBlueWeight] = useState(100);
+  const [updating, setUpdating] = useState(false);
 
   // Calculate green weight based on blue weight
   const greenWeight = 100 - blueWeight;
@@ -24,7 +24,15 @@ export function TrafficControl({ onUpdateTraffic }: TrafficControlProps) {
   const handleUpdateTraffic = async () => {
     try {
       setUpdating(true);
-      await onUpdateTraffic(selectedService, blueWeight, greenWeight);
+      await fetch('http://localhost:8100/slot-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service: selectedService,
+          blue_percentage: blueWeight,
+          green_percentage: greenWeight
+        })
+      });
       toast({
         title: 'Traffic updated',
         description: `${selectedService} traffic distribution updated successfully`,
@@ -52,109 +60,75 @@ export function TrafficControl({ onUpdateTraffic }: TrafficControlProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center">
-          <BarChart3 className="h-5 w-5 mr-2" />
-          Traffic Distribution
-        </CardTitle>
-        <CardDescription>
-          Control traffic distribution between blue and green slots
-        </CardDescription>
+        <CardTitle>Traffic Distribution</CardTitle>
+        <CardDescription>Control traffic distribution between blue and green slots</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <label htmlFor="service-select" className="text-sm font-medium">
-            Service
-          </label>
-          <Select value={selectedService} onValueChange={setSelectedService}>
-            <SelectTrigger id="service-select">
-              <SelectValue placeholder="Select a service" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="microservice-1">microservice-1</SelectItem>
-              <SelectItem value="microservice-2">microservice-2</SelectItem>
-              <SelectItem value="microservice-3">microservice-3</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
+      <CardContent>
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <span className="flex flex-col">
-              <span className="text-sm font-medium">Blue Slot</span>
-              <span className={`text-2xl font-bold ${getWeightColor(blueWeight)}`}>
-                {blueWeight}%
-              </span>
-            </span>
-            <ArrowRightLeft className="h-5 w-5 text-muted-foreground" />
-            <span className="flex flex-col items-end">
-              <span className="text-sm font-medium">Green Slot</span>
-              <span className={`text-2xl font-bold ${getWeightColor(greenWeight)}`}>
-                {greenWeight}%
-              </span>
-            </span>
+          <div>
+            <label className="text-sm font-medium">Service</label>
+            <Select value={selectedService} onValueChange={setSelectedService}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="m1">microservice-1</SelectItem>
+                <SelectItem value="m2">microservice-2</SelectItem>
+                <SelectItem value="m3">microservice-3</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-
-          <Slider
-            sliderdefaultValue={[blueWeight]}
-            max={100}
-            step={10}
-            onValueChange={(values) => setBlueWeight(values[0])}
-          />
-
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>100% Blue</span>
-            <span>50/50</span>
-            <span>100% Green</span>
+          
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className={`text-center p-4 rounded-lg border ${getWeightColor(blueWeight)}`}>
+              <div className="text-sm font-medium">Blue Slot</div>
+              <div className="text-2xl font-bold">{blueWeight}%</div>
+            </div>
+            <div className={`text-center p-4 rounded-lg border ${getWeightColor(greenWeight)}`}>
+              <div className="text-sm font-medium">Green Slot</div>
+              <div className="text-2xl font-bold">{greenWeight}%</div>
+            </div>
           </div>
-
-          <div className="grid grid-cols-5 gap-2 mt-4">
-            <Button
-              variant={blueWeight === 100 ? "default" : "outline"}
-              className="text-xs"
-              onClick={() => setBlueWeight(100)}
-            >
+          
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs text-gray-500">
+              <span>100% Blue</span>
+              <span>50/50</span>
+              <span>100% Green</span>
+            </div>
+            <Slider
+              value={[blueWeight]}
+              min={0}
+              max={100}
+              step={1}
+              onValueChange={(values) => setBlueWeight(values[0])}
+            />
+          </div>
+          
+          <div className="flex flex-wrap gap-2 justify-between">
+            <Button variant="outline" size="sm" onClick={() => setBlueWeight(100)}>
               All Blue
             </Button>
-            <Button
-              variant={blueWeight === 75 ? "default" : "outline"}
-              className="text-xs"
-              onClick={() => setBlueWeight(75)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setBlueWeight(75)}>
               75/25
             </Button>
-            <Button
-              variant={blueWeight === 50 ? "default" : "outline"}
-              className="text-xs"
-              onClick={() => setBlueWeight(50)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setBlueWeight(50)}>
               50/50
             </Button>
-            <Button
-              variant={blueWeight === 25 ? "default" : "outline"}
-              className="text-xs"
-              onClick={() => setBlueWeight(25)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setBlueWeight(25)}>
               25/75
             </Button>
-            <Button
-              variant={blueWeight === 0 ? "default" : "outline"}
-              className="text-xs"
-              onClick={() => setBlueWeight(0)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setBlueWeight(0)}>
               All Green
             </Button>
           </div>
         </div>
       </CardContent>
       <CardFooter>
-        <Button 
-          className="w-full"
-          onClick={handleUpdateTraffic}
-          disabled={updating}
-        >
+        <Button className="w-full" onClick={handleUpdateTraffic} disabled={updating}>
           {updating ? (
             <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Updating Traffic...
             </>
           ) : (

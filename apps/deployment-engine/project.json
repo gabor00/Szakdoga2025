@@ -28,29 +28,21 @@
         "cwd": "apps/deployment-engine"
       }
     },
-    "configurations": {
-      "development": {
-        "buildTarget": "deployment-engine:build:development"
-      },
-      "production": {
-        "buildTarget": "deployment-engine:build:production"
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pytest",
+        "cwd": "apps/deployment-engine"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "flake8 src/",
+        "cwd": "apps/deployment-engine"
       }
     }
   },
-  "test": {
-    "executor": "nx:run-commands",
-    "options": {
-      "command": "pytest",
-      "cwd": "apps/deployment-engine"
-    }
-  },
-  "lint": {
-    "executor": "nx:run-commands",
-    "options": {
-      "command": "flake8 src/",
-      "cwd": "apps/deployment-engine"
-    }
-  },
-  "tags": ["backend", "deployment"]
+    "tags": ["backend", "deployment"]
 }
   

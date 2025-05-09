@@ -15,7 +15,7 @@ class DockerManager:
     def build_image(self, service_name: str, tag: str) -> Optional[str]:
         """Build Docker image for a specific service."""
         try:
-            service_path = f"./apps/{service_name}"
+            service_path = f"../apps/{service_name}"
             image_name = f"{service_name}:{tag}"
             
             logger.info(f"Building image {image_name} from {service_path}")

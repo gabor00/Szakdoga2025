@@ -10,9 +10,9 @@ services:
       - "--providers.docker.exposedbydefault=false"
       - "--providers.file.directory=/etc/traefik/dynamic"
       - "--providers.file.watch=true"
-      - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.address=:8000"
     ports:
-      - "80:80"     # Web entrypoint
+      - "80:8000"     # Web entrypoint
       - "8080:8080" # Dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -137,10 +137,13 @@ services:
       - ./:/app/repo
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.deployment-engine.rule=PathPrefix(`/api/deploy`)"
-      - "traefik.http.middlewares.strip-deploy-prefix.stripprefix.prefixes=/api/deploy"
+      - "traefik.http.routers.deployment-engine.rule=PathPrefix(``)"
+      - "traefik.http.middlewares.strip-deploy-prefix.stripprefix.prefixes="
       - "traefik.http.routers.deployment-engine.middlewares=strip-deploy-prefix"
       - "traefik.http.services.deployment-engine.loadbalancer.server.port=8000"
+    environment:
+      - GITHUB_USERNAME=Gabor00
+      - GITHUB_TOKEN=kfumg3NJ
 
   # Dashboard
   dashboard:
@@ -152,7 +155,7 @@ services:
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost/api/deployment
     networks:
-      - microservices-network
+      - traefik-network
     ports: 
       - "8111:3000"
     labels:
@@ -165,6 +168,4 @@ services:
 
 networks:
   traefik-network:
-    driver: bridge
-  microservices-network:
     driver: bridge

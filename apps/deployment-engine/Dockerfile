@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Git repository klónozása (opcionális, lehet volume-ként is csatolni)
-# RUN git clone https://github.com/your-username/your-repo.git /app/repo
+RUN git clone https://github.com/gabor00/Szakdoga2025.git /app/repo
 
 # Környezeti változók beállítása
 ENV PYTHONUNBUFFERED=1 \

@@ -7,7 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { ServicesStatus } from '../components/services-status';
 import { ReleasesList } from '../components/releases-list';
 import { TrafficControl } from '../components/traffic-control';
-import { deployService, updateTrafficDistribution, restartService } from './api/services/szar';
+import { GET as deployService} from './api/services/deployService/route';
+import { GET as updateTrafficDistribution} from './api/services/updateTrafficDistribution/route';
+import { GET as restartService} from './api/services/restartService/route';
 import { Toaster } from '../components/ui/toaster';
 import { GitMerge, Server, Activity } from 'lucide-react';
 

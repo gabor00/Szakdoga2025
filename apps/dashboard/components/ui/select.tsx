@@ -1,4 +1,5 @@
 // ui/select.tsx
+
 import * as React from "react";
 import { ChevronDown } from "lucide-react";
 
@@ -25,41 +26,62 @@ export interface SelectProps {
   children?: React.ReactNode;
 }
 
+export interface SelectContextValue {
+  value?: string;
+  onValueChange?: (_value: string) => void;
+  setIsOpen: (_isOpen: boolean) => void;
+}
+
+const SelectContext = React.createContext<SelectContextValue | null>(null);
+
 const Select = React.forwardRef<HTMLDivElement, SelectProps>(
-  ({ value, defaultValue, onValueChange, disabled, name, placeholder, className, children }, ref) => {
+  ({ value, defaultValue, onValueChange, disabled, name, placeholder, children }) => {
     const [isOpen, setIsOpen] = React.useState(false);
     const [selectedValue, setSelectedValue] = React.useState(value || defaultValue || "");
-    const selectRef = React.useRef<HTMLDivElement>(null);
+    const divRef = React.useRef<HTMLDivElement>(null);
+    const selectRef = React.useRef<HTMLSelectElement>(null);
 
-    // ...useEffects...
+    React.useEffect(() => {
+      if (value !== undefined) {
+        setSelectedValue(value);
+      }
+    }, [value]);
 
     return (
-      <div ref={selectRef} className={`relative w-full ${className}`}>
-        <div
-          ref={ref}
+      <SelectContext.Provider value={{
+        value: selectedValue,
+        onValueChange: (value) => {
+          setSelectedValue(value);
+          onValueChange?.(value);
+        },
+        setIsOpen
+      }}>
+        <div 
+          ref={divRef}
           onClick={() => !disabled && setIsOpen(!isOpen)}
           className={`flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
             disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"
           }`}
         >
-          <span className={`${!selectedValue && "text-muted-foreground"}`}>
-            {selectedValue
-              ? React.Children.toArray(children).find(
-                  (child): child is React.ReactElement<SelectOptionProps> =>
-                    React.isValidElement<SelectOptionProps>(child) && child.props.value === selectedValue
-                )?.props.children || selectedValue
-              : placeholder}
-          </span>
+          {selectedValue
+            ? React.Children.toArray(children).find(
+                (child): child is React.ReactElement<SelectItemProps> =>
+                  React.isValidElement(child) &&
+                  'value' in child &&
+                  child.value === selectedValue
+              )?.props.children || selectedValue
+            : placeholder}
           <ChevronDown className="h-4 w-4 opacity-50" />
+          
+          {isOpen && (
+            <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
+              {children}
+            </div>
+          )}
         </div>
 
-        {isOpen && (
-          <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-80">
-            {children}
-          </div>
-        )}
-
         <select
+          ref={selectRef}
           name={name}
           value={selectedValue}
           onChange={(e) => {
@@ -69,18 +91,23 @@ const Select = React.forwardRef<HTMLDivElement, SelectProps>(
           disabled={disabled}
           className="sr-only"
         >
-          {React.Children.map(children, (child) => {
-            if (React.isValidElement<SelectOptionProps>(child)) {
-              return (
-                <option value={child.props.value} disabled={child.props.disabled}>
-                  {child.props.children}
-                </option>
-              );
-            }
-            return null;
-          })}
+          {selectedValue
+            ? React.Children.toArray(children).find(
+                (child): child is React.ReactElement<SelectItemProps> =>
+                  React.isValidElement(child) &&
+                  'value' in child &&
+                  child.value === selectedValue
+              )?.props.children || selectedValue
+            : placeholder}
+          {/*{selectedValue
+              ? React.Children.toArray(children).find(
+                  (child): child is React.ReactElement<SelectOptionProps> =>
+                    React.isValidElement<SelectOptionProps>(child) && child.props.value === selectedValue
+                )?.props.children || selectedValue
+              : placeholder}
+              */}
         </select>
-      </div>
+      </SelectContext.Provider>
     );
   }
 );
@@ -219,8 +246,7 @@ export interface SelectValueProps extends React.HTMLAttributes<HTMLSpanElement> 
 }
 
 const SelectValue = React.forwardRef<HTMLSpanElement, SelectValueProps>(
-  ({ className, placeholder, children, ...props }, ref) => {
-    return (
+  ({ className, placeholder, children, ...props }, ref) => (
       <span
         ref={ref}
         className={`block truncate ${className}`}
@@ -228,20 +254,10 @@ const SelectValue = React.forwardRef<HTMLSpanElement, SelectValueProps>(
       >
         {children || placeholder}
       </span>
-    );
-  }
-);
+    )
+  );
 
 SelectValue.displayName = "SelectValue";
-
-// Context for Select component
-interface SelectContextValue {
-  value?: string;
-  onValueChange?: (_value: string) => void;
-  setIsOpen: (_isOpen: boolean) => void;
-}
-
-const SelectContext = React.createContext<SelectContextValue | null>(null);
 
 export {
   Select,

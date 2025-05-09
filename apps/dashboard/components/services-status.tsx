@@ -8,34 +8,34 @@ import { Loader2, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
 import { toast } from '../components/ui/use-toast';
 
 // Define types
-type SlotStatus = {
-  id: string | null;
-  status: string;
-  image: string | null;
-  created: string | null;
+type ServiceStatus = {
+  service: string;
+  blue_slot: string;
+  green_slot: string;
+  active_slot: string | null;
+  version: string | null;
 };
 
-type ServiceStatus = {
-  blue: SlotStatus;
-  green: SlotStatus;
+type RefreshingState = {
+  [key: string]: boolean;
 };
 
 type ServicesStatusProps = {
-  onRestartService: (_serviceName: string, _slot: string) => Promise<void>;
+  onRestartService: (_serviceName: string, _slot: string) => Promise<any>;
 };
 
 export function ServicesStatus({ onRestartService }: ServicesStatusProps) {
-  const [services, setServices] = useState<Record<string, ServiceStatus>>({});
-  const [loading, setLoading] = useState<boolean>(true);
-  const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
+  const [services, setServices] = useState<ServiceStatus[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState<RefreshingState>({});
 
   // Fetch services status
   const fetchServicesStatus = async () => {
     try {
       setLoading(true);
-      const response = await fetch('api/services/fetchReleases');
+      const response = await fetch('http://localhost:8100/services');
       const data = await response.json();
-      setServices(data);
+      setServices(data.services);
     } catch (error) {
       console.error(error)
       toast({
@@ -52,7 +52,9 @@ export function ServicesStatus({ onRestartService }: ServicesStatusProps) {
   const handleRestartService = async (serviceName: string, slot: string) => {
     try {
       setRefreshing({ ...refreshing, [`${serviceName}-${slot}`]: true });
-      await onRestartService(serviceName, slot);
+      await fetch(`http://localhost:8100/restart/${serviceName}/${slot}`, {
+        method: 'POST'
+      });
       toast({
         title: 'Service restarted',
         description: `${serviceName} (${slot}) has been restarted successfully`,
@@ -82,148 +84,139 @@ export function ServicesStatus({ onRestartService }: ServicesStatusProps) {
   // Get status badge
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'running':
-        return <Badge className="bg-green-500">Running</Badge>;
-      case 'exited':
-        return <Badge className="bg-red-500">Exited</Badge>;
-      case 'not_found':
-        return <Badge className="bg-gray-500">Not Found</Badge>;
+      case 'active':
+        return <Badge variant="default">Active</Badge>;
+      case 'idle':
+        return <Badge variant="secondary">Idle</Badge>;
+      case 'deploying':
+        return <Badge variant="outline">Deploying</Badge>;
+      case 'failed':
+        return <Badge variant="destructive">Failed</Badge>;
       default:
-        return <Badge className="bg-yellow-500">{status}</Badge>;
+        return <Badge>{status}</Badge>;
     }
-  };
-
-  // Extract version from image tag (e.g., "microservice-1:release-1.2" -> "1.2")
-  const extractVersion = (imageTag: string | null) => {
-    if (!imageTag) return 'N/A';
-    const match = imageTag.match(/release-([0-9.]+)/);
-    return match ? match[1] : 'Unknown';
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Loading services status...</span>
+      <div className="flex justify-center items-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin mr-2" />
+        <span>Loading services status...</span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Services Status</h2>
-        <Button onClick={fetchServicesStatus} variant="outline" size="sm">
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Services Status</CardTitle>
+          <CardDescription>Current status of all services</CardDescription>
+        </div>
+        <Button variant="outline" size="sm" onClick={fetchServicesStatus}>
           <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Object.entries(services).map(([serviceName, status]) => (
-          <Card key={serviceName} className="overflow-hidden">
-            <CardHeader className="bg-muted">
-              <CardTitle>{serviceName}</CardTitle>
-              <CardDescription>
-                Blue/Green Deployment Status
-              </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {services.map((service) => (
+          <Card key={service.service} className="mb-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">{service.service}</CardTitle>
+              <CardDescription>Blue/Green Deployment Status</CardDescription>
             </CardHeader>
-            <CardContent className="p-0">
-              <Tabs defaultValue="blue" className="w-full">
-                <TabsList className="w-full grid grid-cols-2">
+            <CardContent>
+              <Tabs defaultValue="blue">
+                <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="blue">Blue Slot</TabsTrigger>
                   <TabsTrigger value="green">Green Slot</TabsTrigger>
                 </TabsList>
-                <TabsContent value="blue" className="p-4 space-y-4">
+                <TabsContent value="blue" className="p-4 border rounded-md mt-2">
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="font-medium">Status:</span>
-                      {getStatusBadge(status.blue.status)}
+                      <span>{getStatusBadge(service.blue_slot)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="font-medium">Version:</span>
-                      <span>{extractVersion(status.blue.image)}</span>
+                      <span>{service.version || 'N/A'}</span>
                     </div>
-                    {status.blue.created && (
-                      <div className="flex justify-between">
-                        <span className="font-medium">Created:</span>
-                        <span>{new Date(status.blue.created).toLocaleString()}</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between">
+                      <span className="font-medium">Active:</span>
+                      <span>{service.active_slot === 'blue' ? 'Yes' : 'No'}</span>
+                    </div>
+                    <Button 
+                      onClick={() => handleRestartService(service.service, 'blue')}
+                      disabled={refreshing[`${service.service}-blue`] || service.blue_slot !== 'active'}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      {refreshing[`${service.service}-blue`] ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Restarting...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Restart
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  <Button 
-                    onClick={() => handleRestartService(serviceName, 'blue')}
-                    disabled={refreshing[`${serviceName}-blue`] || status.blue.status === 'not_found'}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    {refreshing[`${serviceName}-blue`] ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Restarting...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Restart
-                      </>
-                    )}
-                  </Button>
                 </TabsContent>
-                <TabsContent value="green" className="p-4 space-y-4">
+                <TabsContent value="green" className="p-4 border rounded-md mt-2">
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="font-medium">Status:</span>
-                      {getStatusBadge(status.green.status)}
+                      <span>{getStatusBadge(service.green_slot)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="font-medium">Version:</span>
-                      <span>{extractVersion(status.green.image)}</span>
+                      <span>{service.version || 'N/A'}</span>
                     </div>
-                    {status.green.created && (
-                      <div className="flex justify-between">
-                        <span className="font-medium">Created:</span>
-                        <span>{new Date(status.green.created).toLocaleString()}</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between">
+                      <span className="font-medium">Active:</span>
+                      <span>{service.active_slot === 'green' ? 'Yes' : 'Nope'}</span>
+                    </div>
+                    <Button 
+                      onClick={() => handleRestartService(service.service, 'green')}
+                      disabled={refreshing[`${service.service}-green`] || service.green_slot !== 'active'}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      {refreshing[`${service.service}-green`] ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Restarting...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Restart
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  <Button 
-                    onClick={() => handleRestartService(serviceName, 'green')}
-                    disabled={refreshing[`${serviceName}-green`] || status.green.status === 'not_found'}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    {refreshing[`${serviceName}-green`] ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Restarting...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Restart
-                      </>
-                    )}
-                  </Button>
                 </TabsContent>
               </Tabs>
             </CardContent>
-            <CardFooter className="bg-muted/50 flex justify-between py-2">
-              {status.blue.status === 'running' || status.green.status === 'running' ? (
-                <span className="flex items-center text-sm text-green-600">
-                  <CheckCircle className="h-4 w-4 mr-1" />
+            <CardFooter>
+              {service.blue_slot === 'active' || service.green_slot === 'active' ? (
+                <div className="flex items-center text-green-600">
+                  <CheckCircle className="h-4 w-4 mr-2" />
                   Service is available
-                </span>
+                </div>
               ) : (
-                <span className="flex items-center text-sm text-red-600">
-                  <AlertCircle className="h-4 w-4 mr-1" />
+                <div className="flex items-center text-red-600">
+                  <AlertCircle className="h-4 w-4 mr-2" />
                   Service is unavailable
-                </span>
+                </div>
               )}
             </CardFooter>
           </Card>
         ))}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
