@@ -1,0 +1,29 @@
+C:\Users\Gabor00\Documents\GitHub\Szakdoga2025
+├── .config
+├── .editorconfig
+├── .git
+├── .github
+├── .gitignore
+├── .nx
+├── .prettierignore
+├── .prettierrc
+├── .vscode
+├── apps
+├── Directory.Build.props
+├── Directory.Build.targets
+├── dist
+├── docker
+├── eslint.config.js
+├── jest.config.ts
+├── jest.preset.ts
+├── libs
+├── node_modules
+├── nx.json
+├── package-lock.json
+├── package.json
+├── project-tree.txt
+├── README.md
+└── tsconfig.base.json
+
+directory: 10 file: 15
+

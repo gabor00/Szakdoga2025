@@ -39,9 +39,9 @@ app.add_middleware(
 
 # Szolgáltatások állapota
 service_states = {
-    "m1": {"blue": "idle", "green": "idle", "active_slot": None, "version": None},
-    "m2": {"blue": "idle", "green": "idle", "active_slot": None, "version": None},
-    "m3": {"blue": "idle", "green": "idle", "active_slot": None, "version": None}
+    "microservice1": {"blue": "idle", "green": "idle", "active_slot": None, "version": None},
+    "microservice2": {"blue": "idle", "green": "idle", "active_slot": None, "version": None},
+    "microservice3": {"blue": "idle", "green": "idle", "active_slot": None, "version": None}
 }
 
 # Deployment státuszok
@@ -105,7 +105,7 @@ def start_container(service: str, version: str, slot: str):
         
     try:
         image_name = f"{service}:{version}"
-        container_name = f"{service}-{slot}"
+        container_name = f"szakdoga2025-{service}-{slot}-1"
         labels = {
             "traefik.enable": "true",
             f"traefik.http.routers.{service}-{slot}.rule": f"PathPrefix(`/api/{service}`)",
@@ -132,27 +132,53 @@ def start_container(service: str, version: str, slot: str):
         logger.error(f"Hiba a konténer indításakor: {e}")
         raise HTTPException(status_code=500, detail=f"Hiba a konténer indításakor: {str(e)}")
 
+import requests
+from requests.exceptions import RequestException
+
 async def deploy_service(service: str, version: str, slot: str, background_tasks: BackgroundTasks):
-    """Szolgáltatás deploy-olása az adott slotra"""
     deployment_id = f"{service}-{version}-{slot}-{int(time.time())}"
     try:
         service_states[service][slot] = "deploying"
         deployment_statuses[deployment_id] = {"status": "in_progress", "message": "Deployment elindult"}
         logger.info(f"Deployment indítása: {service} v{version} a {slot} slotra")
         
-        # Sikeres deploy esetén
-        service_states[service][slot] = "active"
-        if not service_states[service]["active_slot"]:
-            service_states[service]["active_slot"] = slot
-        service_states[service]["version"] = version
-
-        deployment_statuses[deployment_id] = {"status": "success", "message": f"{service} v{version} sikeresen deploy-olva a {slot} slotra"}
-        logger.info(f"Sikeres deployment: {service} v{version} a {slot} slotra")
-
+        # Konténer indítása
+        start_container(service, version, slot)
+        
+        # Várjunk egy kicsit, hogy a konténer elinduljon
+        await asyncio.sleep(5)
+        
+        # Ellenőrizzük, hogy a konténer fut-e és válaszol-e
+        container_name = f"szakdoga2025-{service}-{slot}-1"
+        health_check_success = False
+        
+        try:
+            # Explicit port megadása (8000) a szolgáltatásnévvel
+            response = requests.get(f"http://{container_name}:8000/health", timeout=2)
+            health_check_success = response.status_code == 200
+        except RequestException as e:
+            logger.warning(f"Health check hiba: {e}")
+            health_check_success = False
+        
+        if health_check_success:
+            # Sikeres deploy esetén
+            service_states[service][slot] = "active"
+            if not service_states[service]["active_slot"]:
+                service_states[service]["active_slot"] = slot
+            service_states[service]["version"] = version
+            
+            deployment_statuses[deployment_id] = {"status": "success", "message": f"{service} v{version} sikeresen deploy-olva a {slot} slotra"}
+            logger.info(f"Sikeres deployment: {service} v{version} a {slot} slotra")
+        else:
+            # Ha a konténer nem válaszol, akkor hiba
+            service_states[service][slot] = "failed"
+            deployment_statuses[deployment_id] = {"status": "failed", "message": f"A {service} konténer nem válaszol a health check kérésekre"}
+            logger.error(f"Deployment hiba: {service} v{version} a {slot} slotra - konténer nem válaszol")
     except Exception as e:
         service_states[service][slot] = "failed"
         deployment_statuses[deployment_id] = {"status": "failed", "message": str(e)}
         logger.error(f"Deployment hiba: {service} v{version} a {slot} slotra - {e}")
+
 
 # ------------------- API VÉGPONTOK -------------------
 
@@ -197,16 +223,104 @@ async def get_latest_release():
 @app.get("/services", summary="Szolgáltatások állapotának lekérdezése")
 async def get_services_status():
     """Visszaadja az összes szolgáltatás aktuális állapotát"""
+    # Először lekérjük a diagnosztikai adatokat
+    diagnostics_data = await run_diagnostics()
+    diagnostics_info = diagnostics_data.get("diagnostics", {})
+    
     result = []
     for service, state in service_states.items():
+        blue_key = f"szakdoga2025-{service}-blue-1"
+        green_key = f"szakdoga2025-{service}-green-1"
+        
+        blue_info = diagnostics_info.get(blue_key, {})
+        green_info = diagnostics_info.get(green_key, {})
+        
+        # Állapot meghatározása a diagnosztikai adatok alapján
+        blue_status = "active" if blue_info.get("running") and blue_info.get("health_check") else "idle"
+        green_status = "active" if green_info.get("running") and green_info.get("health_check") else "idle"
+        
+        # Ha az állapot active, de a konténer nem fut, akkor frissítsük
+        if state["blue"] == "active" and blue_status != "active":
+            state["blue"] = blue_status
+        elif blue_status == "active" and state["blue"] != "active":
+            state["blue"] = blue_status
+            
+        if state["green"] == "active" and green_status != "active":
+            state["green"] = green_status
+        elif green_status == "active" and state["green"] != "active":
+            state["green"] = green_status
+        
+        # Aktív slot meghatározása
+        if not state["active_slot"] and (blue_status == "active" or green_status == "active"):
+            state["active_slot"] = "blue" if blue_status == "active" else "green"
+        
         result.append({
             "service": service,
             "blue_slot": state["blue"],
             "green_slot": state["green"],
             "active_slot": state["active_slot"],
-            "version": state["version"]
+            "version": state["version"],
+            "blue_running": blue_info.get("running", False),
+            "green_running": green_info.get("running", False)
         })
+    
     return {"services": result}
+
+
+def check_service_health(service: str, slot: str) -> bool:
+    """Ellenőrzi egy szolgáltatás egészségi állapotát"""
+    container_name = f"szakdoga2025-{service}-{slot}-1"
+    try:
+        response = requests.get(f"http://{container_name}:8000/health", timeout=2)
+        return response.status_code == 200
+    except:
+        return False
+    
+@app.get("/diagnostics", summary="Hálózati diagnosztika")
+async def run_diagnostics():
+    """Diagnosztikai információk a konténerekről és a hálózati kapcsolatokról"""
+    results = {}
+    for service in service_states:
+        for slot in ["blue", "green"]:
+            container_name = f"szakdoga2025-{service}-{slot}-1"
+            try:
+                # Ellenőrizzük, hogy a konténer létezik-e
+                container_exists = False
+                container_running = False
+                container_ip = None
+                
+                try:
+                    if docker_client:
+                        container = docker_client.containers.get(container_name)
+                        container_exists = True
+                        container_running = container.status == "running"
+                        if container_running:
+                            networks = container.attrs['NetworkSettings']['Networks']
+                            if 'traefik-network' in networks:
+                                container_ip = networks['traefik-network']['IPAddress']
+                except Exception as e:
+                    logger.warning(f"Nem sikerült lekérdezni a {container_name} konténer adatait: {e}")
+                
+                # Próbáljunk kapcsolódni a konténerhez a 8000-es porton
+                health_check = check_service_health(service, slot)
+                
+                results[container_name] = {
+                    "exists": container_exists,
+                    "running": container_running,
+                    "ip_address": container_ip,
+                    "health_check": health_check
+                }
+            except Exception as e:
+                logger.error(f"Hiba a {container_name} diagnosztikájakor: {e}")
+                results[container_name] = {
+                    "exists": False,
+                    "running": False,
+                    "ip_address": None,
+                    "health_check": False,
+                    "error": str(e)
+                }
+    
+    return {"diagnostics": results}
 
 @app.get("/services/patch-status", summary="Összes service patch státusz lekérdezése")
 async def get_all_services_patch_status():
@@ -275,7 +389,7 @@ async def configure_slots(request: SlotConfigurationRequest):
         "message": f"A {request.service} szolgáltatás forgalom elosztása sikeresen beállítva: blue {request.blue_percentage}%, green {request.green_percentage}%"
     }
 
-@app.post("/restart/{service}/{slot}", summary="Szolgáltatás újraindítása")
+@app.post("/restart/szakdoga2025-{service}-{slot}-1", summary="Szolgáltatás újraindítása")
 async def restart_service(service: str, slot: str):
     """Újraindítja a megadott szolgáltatás megadott slotját"""
     if service not in service_states:

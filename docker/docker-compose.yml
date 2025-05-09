@@ -1,5 +1,5 @@
 
-
+name: szakdoga2025
 services:
   # Load Balancer
   traefik:
@@ -21,6 +21,7 @@ services:
     networks:
       - traefik-network
     labels:
+      - "traefik.docker.network=szakdoga2025_traefik-network"  # A docker network ls által mutatott név
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.rule=Host(`traefik.localhost`)"
       - "traefik.http.routers.traefik.service=api@internal"
@@ -38,6 +39,7 @@ services:
       - SERVICE_VERSION=0.1.0
       - DEPLOYMENT_SLOT=blue
     labels:
+      - "traefik.docker.network=szakdoga2025_traefik-network"  # A docker network ls által mutatott név
       - "traefik.enable=true"
       - "traefik.http.routers.microservice1-blue.rule=PathPrefix(`/api/service1`) && Headers(`X-Deployment-Slot`, `blue`)"
       - "traefik.http.services.microservice1-blue.loadbalancer.server.port=8000"
@@ -54,6 +56,7 @@ services:
       - SERVICE_VERSION=0.1.0
       - DEPLOYMENT_SLOT=blue
     labels:
+      - "traefik.docker.network=szakdoga2025_traefik-network"  # A docker network ls által mutatott név
       - "traefik.enable=true"
       - "traefik.http.routers.microservice2-blue.rule=PathPrefix(`/api/service2`) && Headers(`X-Deployment-Slot`, `blue`)"
       - "traefik.http.services.microservice2-blue.loadbalancer.server.port=8000"
@@ -70,6 +73,7 @@ services:
       - SERVICE_VERSION=0.1.0
       - DEPLOYMENT_SLOT=blue
     labels:
+      - "traefik.docker.network=szakdoga2025_traefik-network"  # A docker network ls által mutatott név
       - "traefik.enable=true"
       - "traefik.http.routers.microservice3-blue.rule=PathPrefix(`/api/service3`) && Headers(`X-Deployment-Slot`, `blue`)"
       - "traefik.http.services.microservice3-blue.loadbalancer.server.port=8000"
@@ -87,6 +91,7 @@ services:
       - SERVICE_VERSION=0.1.0
       - DEPLOYMENT_SLOT=green
     labels:
+      - "traefik.docker.network=szakdoga2025_traefik-network"  # A docker network ls által mutatott név
       - "traefik.enable=true"
       - "traefik.http.routers.microservice1-green.rule=PathPrefix(`/api/service1`) && Headers(`X-Deployment-Slot`, `green`)"
       - "traefik.http.services.microservice1-green.loadbalancer.server.port=8000"
@@ -103,6 +108,7 @@ services:
       - SERVICE_VERSION=0.1.0
       - DEPLOYMENT_SLOT=green
     labels:
+      - "traefik.docker.network=szakdoga2025_traefik-network"  # A docker network ls által mutatott név
       - "traefik.enable=true"
       - "traefik.http.routers.microservice2-green.rule=PathPrefix(`/api/service2`) && Headers(`X-Deployment-Slot`, `green`)"
       - "traefik.http.services.microservice2-green.loadbalancer.server.port=8000"
@@ -119,6 +125,7 @@ services:
       - SERVICE_VERSION=0.1.0
       - DEPLOYMENT_SLOT=green
     labels:
+      - "traefik.docker.network=szakdoga2025_traefik-network"  # A docker network ls által mutatott név
       - "traefik.enable=true"
       - "traefik.http.routers.microservice3-green.rule=PathPrefix(`/api/service3`) && Headers(`X-Deployment-Slot`, `green`)"
       - "traefik.http.services.microservice3-green.loadbalancer.server.port=8000"
@@ -136,9 +143,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./:/app/repo
     labels:
+      - "traefik.docker.network=szakdoga2025_traefik-network"  # A docker network ls által mutatott név
       - "traefik.enable=true"
-      - "traefik.http.routers.deployment-engine.rule=PathPrefix(``)"
-      - "traefik.http.middlewares.strip-deploy-prefix.stripprefix.prefixes="
+      - "traefik.http.routers.deployment-engine.rule=PathPrefix(`/api/deployment-engine`)"
+      - "traefik.http.middlewares.strip-deploy-prefix.stripprefix.prefixes=/api/deployment-engine"
       - "traefik.http.routers.deployment-engine.middlewares=strip-deploy-prefix"
       - "traefik.http.services.deployment-engine.loadbalancer.server.port=8000"
 
@@ -156,6 +164,7 @@ services:
     ports: 
       - "8111:3000"
     labels:
+      - "traefik.docker.network=szakdoga2025_traefik-network"  # A docker network ls által mutatott név
       - "traefik.enable=true"
       - "traefik.http.routers.dashboard.rule=PathPrefix(`/`)"
       - "traefik.http.routers.dashboard.entrypoints=web"

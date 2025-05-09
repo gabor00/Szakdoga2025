@@ -89,7 +89,7 @@ class DockerManager:
             logger.info(f"Deploying {image_name} to {service_name} {slot} slot")
             
             # Define container parameters
-            container_name = f"{service_name}-{slot}"
+            container_name = f"szakdoga2025-{service_name}-{slot}-1"
             labels = {
                 "service": service_name,
                 "slot": slot,
@@ -122,7 +122,7 @@ class DockerManager:
     
     def _stop_container(self, service_name: str, slot: str) -> bool:
         """Stop and remove existing container in the slot."""
-        container_name = f"{service_name}-{slot}"
+        container_name = f"szakdoga2025-{service_name}-{slot}-1"
         try:
             containers = self.client.containers.list(
                 all=True,
@@ -147,8 +147,8 @@ class DockerManager:
         """Update Traefik configuration to balance traffic between slots."""
         try:
             # Create Traefik dynamic configuration
-            blue_container_name = f"{service_name}-blue"
-            green_container_name = f"{service_name}-green"
+            blue_container_name = f"szakdoga2025-{service_name}-blue-1"
+            green_container_name = f"szakdoga2025-{service_name}-green-1"
             
             # Update container labels for Traefik routing weights
             containers = self.client.containers.list(
@@ -175,7 +175,7 @@ class DockerManager:
     def restart_service(self, service_name: str, slot: str) -> bool:
         """Restart a service in the specified slot."""
         try:
-            container_name = f"{service_name}-{slot}"
+            container_name = f"szakdoga2025-{service_name}-{slot}-1"
             containers = self.client.containers.list(
                 all=True,
                 filters={"name": container_name}
