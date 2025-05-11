@@ -5,6 +5,7 @@ entryPoints:
   websecure:
     address: ":443"
 
+
 # API és Dashboard konfigurálása
 api:
   insecure: true  # Fejlesztési környezetben, production-ben false legyen!
@@ -17,7 +18,7 @@ providers:
     exposedByDefault: false
     network: "traefik-network"
   file:
-    directory: "/etc/traefik/dynamic"
+    filename: "/etc/traefik/dynamic/services.yml"
     watch: true
 
 # Log beállítások

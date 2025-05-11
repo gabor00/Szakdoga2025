@@ -6,7 +6,7 @@ from api.endpoints import health
 
 app = FastAPI(
     title="Microservice 3",
-    description="Első mikroszolgáltatás a monorepo rendszerben",
+    description="Harmadik mikroszolgáltatás a monorepo rendszerben",
     version="0.1.0"
 )
 
@@ -29,7 +29,8 @@ async def root():
     return {
         "service": "m3",
         "version": os.getenv("SERVICE_VERSION", "dev"),
-        "status": "running"
+        "status": "running",
+        "dep-slot": os.getenv("DEPLOYMENT_SLOT")
     }
 
 # FastAPI példa

@@ -13,7 +13,7 @@ type TrafficControlProps = {
 };
 
 export function TrafficControl({ onUpdateTraffic }: TrafficControlProps) {
-  const [selectedService, setSelectedService] = useState('m1');
+  const [selectedService, setSelectedService] = useState('microservice1');
   const [blueWeight, setBlueWeight] = useState(100);
   const [updating, setUpdating] = useState(false);
 
@@ -22,32 +22,42 @@ export function TrafficControl({ onUpdateTraffic }: TrafficControlProps) {
 
   // Handle update traffic
   const handleUpdateTraffic = async () => {
-    try {
-      setUpdating(true);
-      await fetch('http://localhost:8100/slot-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          service: selectedService,
-          blue_percentage: blueWeight,
-          green_percentage: greenWeight
-        })
-      });
-      toast({
-        title: 'Traffic updated',
-        description: `${selectedService} traffic distribution updated successfully`,
-      });
-    } catch (error) {
-      console.error(error)
-      toast({
-        title: 'Error updating traffic',
-        description: `Failed to update traffic distribution for ${selectedService}`,
-        variant: 'destructive',
-      });
-    } finally {
-      setUpdating(false);
+  try {
+    setUpdating(true);
+    const response = await fetch('http://localhost:8100/slot-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        service: selectedService,
+        blue_percentage: blueWeight,
+        green_percentage: greenWeight
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to update traffic distribution');
     }
-  };
+    
+    const data = await response.json();
+    console.log('Response:', data); // Debugging
+    
+    toast({
+      title: 'Traffic updated',
+      description: `${selectedService} traffic distribution updated successfully`,
+    });
+  } catch (error) {
+    console.error(error);
+    toast({
+      title: 'Error updating traffic',
+      description: `Failed to update traffic distribution for ${selectedService}`,
+      variant: 'destructive',
+    });
+  } finally {
+    setUpdating(false);
+  }
+};
+
 
   // Get color based on weight percentage
   const getWeightColor = (weight: number) => {
@@ -72,9 +82,9 @@ export function TrafficControl({ onUpdateTraffic }: TrafficControlProps) {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="m1">microservice-1</SelectItem>
-                <SelectItem value="m2">microservice-2</SelectItem>
-                <SelectItem value="m3">microservice-3</SelectItem>
+                <SelectItem value="microservice1">microservice-1</SelectItem>
+                <SelectItem value="microservice2">microservice-2</SelectItem>
+                <SelectItem value="microservice3">microservice-3</SelectItem>
               </SelectContent>
             </Select>
           </div>

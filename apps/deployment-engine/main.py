@@ -1,13 +1,13 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-import os
 import uvicorn
 import logging
-from typing import Dict, List, Optional
+from typing import Optional
 import docker
 import time
 from pydantic import BaseModel
-import sys
+import asyncio
+
 
 from git_watcher import GitWatcher
 
@@ -105,7 +105,7 @@ def start_container(service: str, version: str, slot: str):
         
     try:
         image_name = f"{service}:{version}"
-        container_name = f"szakdoga2025-{service}-{slot}-1"
+        container_name = f"szakdoga2025-{service}-{slot}"
         labels = {
             "traefik.enable": "true",
             f"traefik.http.routers.{service}-{slot}.rule": f"PathPrefix(`/api/{service}`)",
@@ -149,7 +149,7 @@ async def deploy_service(service: str, version: str, slot: str, background_tasks
         await asyncio.sleep(5)
         
         # Ellenőrizzük, hogy a konténer fut-e és válaszol-e
-        container_name = f"szakdoga2025-{service}-{slot}-1"
+        container_name = f"szakdoga2025-{service}-{slot}"
         health_check_success = False
         
         try:
@@ -229,8 +229,8 @@ async def get_services_status():
     
     result = []
     for service, state in service_states.items():
-        blue_key = f"szakdoga2025-{service}-blue-1"
-        green_key = f"szakdoga2025-{service}-green-1"
+        blue_key = f"szakdoga2025-{service}-blue"
+        green_key = f"szakdoga2025-{service}-green"
         
         blue_info = diagnostics_info.get(blue_key, {})
         green_info = diagnostics_info.get(green_key, {})
@@ -269,7 +269,7 @@ async def get_services_status():
 
 def check_service_health(service: str, slot: str) -> bool:
     """Ellenőrzi egy szolgáltatás egészségi állapotát"""
-    container_name = f"szakdoga2025-{service}-{slot}-1"
+    container_name = f"szakdoga2025-{service}-{slot}"
     try:
         response = requests.get(f"http://{container_name}:8000/health", timeout=2)
         return response.status_code == 200
@@ -282,7 +282,7 @@ async def run_diagnostics():
     results = {}
     for service in service_states:
         for slot in ["blue", "green"]:
-            container_name = f"szakdoga2025-{service}-{slot}-1"
+            container_name = f"szakdoga2025-{service}-{slot}"
             try:
                 # Ellenőrizzük, hogy a konténer létezik-e
                 container_exists = False
@@ -297,7 +297,7 @@ async def run_diagnostics():
                         if container_running:
                             networks = container.attrs['NetworkSettings']['Networks']
                             if 'traefik-network' in networks:
-                                container_ip = networks['traefik-network']['IPAddress']
+                                container_ip = networks['szakdoga2025_traefik-network']['IPAddress']
                 except Exception as e:
                     logger.warning(f"Nem sikerült lekérdezni a {container_name} konténer adatait: {e}")
                 
@@ -365,31 +365,96 @@ async def rollback(service: str):
     """Visszaállítja egy szolgáltatás aktív slotját az inaktívra (ha van)"""
     if service not in service_states:
         raise HTTPException(status_code=404, detail=f"A {service} szolgáltatás nem található")
+    
     current_active = service_states[service]["active_slot"]
     if not current_active:
         raise HTTPException(status_code=400, detail=f"A {service} szolgáltatásnak nincs aktív slotja")
+    
     inactive_slot = "green" if current_active == "blue" else "blue"
     if service_states[service][inactive_slot] != "active":
         raise HTTPException(status_code=400, detail=f"A {service} szolgáltatás {inactive_slot} slotja nem aktív, nem lehet rollback-et végrehajtani")
-    service_states[service]["active_slot"] = inactive_slot
-    # Traefik konfigurációjának frissítése itt történne
-    return {
-        "message": f"A {service} szolgáltatás sikeresen visszaállítva a {inactive_slot} slotra"
-    }
+    
+    # Traefik konfigurációjának frissítése
+    try:
+        blue_weight = 100 if inactive_slot == "blue" else 0
+        green_weight = 100 if inactive_slot == "green" else 0
+        
+        # Konténerek címkéinek frissítése
+        for slot, weight in [("blue", blue_weight), ("green", green_weight)]:
+            container_name = f"szakdoga2025-{service}-{slot}"
+            try:
+                container = docker_client.containers.get(container_name)
+                container.update(labels={
+                    **container.labels,
+                    f"traefik.http.services.{container_name}.loadbalancer.weight": str(weight)
+                })
+            except docker.errors.NotFound:
+                logger.warning(f"A {container_name} konténer nem található")
+        
+        service_states[service]["active_slot"] = inactive_slot
+        logger.info(f"A {service} szolgáltatás sikeresen visszaállítva a {inactive_slot} slotra")
+        
+        return {
+            "message": f"A {service} szolgáltatás sikeresen visszaállítva a {inactive_slot} slotra"
+        }
+    except Exception as e:
+        logger.error(f"Hiba a Traefik konfiguráció frissítésekor: {e}")
+        raise HTTPException(status_code=500, detail=f"Hiba a Traefik konfiguráció frissítésekor: {str(e)}")
+
 
 @app.post("/slot-config", summary="Forgalom elosztás beállítása")
 async def configure_slots(request: SlotConfigurationRequest):
     """Beállítja a forgalom elosztását a blue és green slotok között"""
     if request.service not in service_states:
         raise HTTPException(status_code=404, detail=f"A {request.service} szolgáltatás nem található")
+    
     if request.blue_percentage + request.green_percentage != 100:
         raise HTTPException(status_code=400, detail="A blue és green százalékok összegének 100-nak kell lennie")
-    # Traefik konfigurációjának módosítása itt történne
-    return {
-        "message": f"A {request.service} szolgáltatás forgalom elosztása sikeresen beállítva: blue {request.blue_percentage}%, green {request.green_percentage}%"
-    }
+    
+    try:
+        # Traefik konfigurációs fájl útvonala
+        config_dir = "/etc/traefik/dynamic"
+        config_file = f"{config_dir}/services.yml"
+        
+        # PyYAML használata a YAML fájl módosításához
+        import yaml
+        
+        # Fájl betöltése
+        with open(config_file, 'r') as file:
+            config = yaml.safe_load(file)
+        
+        # A megfelelő szolgáltatás súlyozásának módosítása
+        service_name = f"szakdoga2025-{request.service}"
+        
+        # Ellenőrizzük, hogy létezik-e a szolgáltatás
+        if service_name not in config["http"]["services"]:
+            raise HTTPException(status_code=404, detail=f"A {service_name} szolgáltatás nem található a konfigurációban")
+        
+        # Súlyok módosítása a weighted services alatt
+        weighted_services = config["http"]["services"][service_name]["weighted"]["services"]
+        
+        # Blue és green szolgáltatások súlyának módosítása
+        for service in weighted_services:
+            if service["name"] == f"{service_name}-blue":
+                service["weight"] = request.blue_percentage
+            elif service["name"] == f"{service_name}-green":
+                service["weight"] = request.green_percentage
+        
+        # Konfiguráció mentése
+        with open(config_file, 'w') as file:
+            yaml.safe_dump(config, file, default_flow_style=False, sort_keys=False)
+        
+        logger.info(f"Traefik konfiguráció frissítve: blue {request.blue_percentage}%, green {request.green_percentage}%")
+        
+        return {
+            "message": f"A {request.service} szolgáltatás forgalom elosztása sikeresen beállítva"
+        }
+    except Exception as e:
+        logger.error(f"Hiba a Traefik konfiguráció frissítésekor: {e}")
+        raise HTTPException(status_code=500, detail=f"Hiba a Traefik konfiguráció frissítésekor: {str(e)}")
 
-@app.post("/restart/szakdoga2025-{service}-{slot}-1", summary="Szolgáltatás újraindítása")
+
+@app.post("/restart/szakdoga2025-{service}-{slot}", summary="Szolgáltatás újraindítása")
 async def restart_service(service: str, slot: str):
     """Újraindítja a megadott szolgáltatás megadott slotját"""
     if service not in service_states:
@@ -403,7 +468,7 @@ async def restart_service(service: str, slot: str):
         raise HTTPException(status_code=503, detail="Docker kliens nem elérhető")
         
     try:
-        container = docker_client.containers.get(f"{service}-{slot}")
+        container = docker_client.containers.get(f"szakdoga2025-{service}-{slot}")
         container.restart()
         logger.info(f"A {service} szolgáltatás {slot} slotja újraindítva")
     except docker.errors.NotFound:

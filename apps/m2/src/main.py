@@ -29,7 +29,8 @@ async def root():
     return {
         "service": "m2",
         "version": os.getenv("SERVICE_VERSION", "dev"),
-        "status": "running"
+        "status": "running",
+        "dep-slot": os.getenv("DEPLOYMENT_SLOT")
     }
 
 # FastAPI példa

@@ -1,102 +1,81 @@
-# docker/traefik/dynamic/services.yml
 http:
-  routers:
-    microservice1-blue:
-      rule: "PathPrefix(`/api/service1`) && Headers(`X-Deployment-Slot`, `blue`)"
-      service: microservice1-blue
-      middlewares:
-        - "strip-prefix"
-    
-    microservice1-green:
-      rule: "PathPrefix(`/api/service1`) && Headers(`X-Deployment-Slot`, `green`)"
-      service: microservice1-green
-      middlewares:
-        - "strip-prefix"
-    
-    microservice2-blue:
-      rule: "PathPrefix(`/api/service2`) && Headers(`X-Deployment-Slot`, `blue`)"
-      service: microservice2-blue
-      middlewares:
-        - "strip-prefix"
-    
-    microservice2-green:
-      rule: "PathPrefix(`/api/service2`) && Headers(`X-Deployment-Slot`, `green`)"
-      service: microservice2-green
-      middlewares:
-        - "strip-prefix"
-    
-    microservice3-blue:
-      rule: "PathPrefix(`/api/service3`) && Headers(`X-Deployment-Slot`, `blue`)"
-      service: microservice3-blue
-      middlewares:
-        - "strip-prefix"
-
-    microservice3-green:
-      rule: "PathPrefix(`/api/service3`) && Headers(`X-Deployment-Slot`, `green`)"
-      service: microservice3-green
-      middlewares:
-        - "strip-prefix"
-    
+  services:
+    szakdoga2025-microservice1:
+      weighted:
+        services:
+        - name: szakdoga2025-microservice1-blue
+          weight: 50
+        - name: szakdoga2025-microservice1-green
+          weight: 50
+    szakdoga2025-microservice1-blue:
+      loadBalancer:
+        servers:
+        - url: http://szakdoga2025-microservice1-blue:8000
+    szakdoga2025-microservice1-green:
+      loadBalancer:
+        servers:
+        - url: http://szakdoga2025-microservice1-green:8000
+    szakdoga2025-microservice2:
+      weighted:
+        services:
+        - name: szakdoga2025-microservice2-blue
+          weight: 100
+        - name: szakdoga2025-microservice2-green
+          weight: 0
+    szakdoga2025-microservice2-blue:
+      loadBalancer:
+        servers:
+        - url: http://szakdoga2025-microservice2-blue:8000
+    szakdoga2025-microservice2-green:
+      loadBalancer:
+        servers:
+        - url: http://szakdoga2025-microservice2-green:8000
+    szakdoga2025-microservice3:
+      weighted:
+        services:
+        - name: szakdoga2025-microservice3-blue
+          weight: 0
+        - name: szakdoga2025-microservice3-green
+          weight: 100
+    szakdoga2025-microservice3-blue:
+      loadBalancer:
+        servers:
+        - url: http://szakdoga2025-microservice3-blue:8000
+    szakdoga2025-microservice3-green:
+      loadBalancer:
+        servers:
+        - url: http://szakdoga2025-microservice3-green:8000
     dashboard:
-      rule: "PathPrefix(`/`)"
-      service: dashboard
-    
+      loadBalancer:
+        servers:
+        - url: http://szakdoga2025-dashboard:3000
     deployment-engine:
-      rule: "PathPrefix(`/api/deploy`)"
+      loadBalancer:
+        servers:
+        - url: http://szakdoga2025-deployment-engine:8000
+  routers:
+    m1:
+      rule: Host(`microservice1.com`)
+      service: szakdoga2025-microservice1
+    m2:
+      rule: Host(`microservice2.com`)
+      service: szakdoga2025-microservice2
+    m3:
+      rule: Host(`microservice3.com`)
+      service: szakdoga2025-microservice3
+    dashboard:
+      rule: PathPrefix(`/dashboard`)
+      service: dashboard
+      middlewares:
+      - strip-prefix
+    deployment-engine:
+      rule: PathPrefix(`/api/deploy`)
       service: deployment-engine
       middlewares:
-        - "strip-deploy-prefix"
-
-  services:
-    microservice1-blue:
-      loadBalancer:
-        servers:
-          - url: "http://microservice1-blue:8000"
-    
-    microservice1-green:
-      loadBalancer:
-        servers:
-          - url: "http://microservice1-green:8000"
-    
-    microservice2-blue:
-      loadBalancer:
-        servers:
-          - url: "http://microservice2-blue:8000"
-    
-    microservice2-green:
-      loadBalancer:
-        servers:
-          - url: "http://microservice2-green:8000"
-    
-    microservice3-blue:
-      loadBalancer:
-        servers:
-          - url: "http://microservice3-blue:8000"
-    
-    microservice3-green:
-      loadBalancer:
-        servers:
-          - url: "http://microservice3-green:8000"
-    
-    dashboard:
-      loadBalancer:
-        servers:
-          - url: "http://dashboard:3000"
-    
-    deployment-engine:
-      loadBalancer:
-        servers:
-          - url: "http://deployment-engine:8000"
-
+      - strip-prefix
   middlewares:
     strip-prefix:
       stripPrefix:
         prefixes:
-          - "/api/service1"
-          - "/api/service2"
-          - "/api/service3"
-    
-    strip-deploy-prefix:
-      stripPrefix:
-        prefixes:
-          - "/api/deploy"
+        - /dashboard
+        - /api/deploy

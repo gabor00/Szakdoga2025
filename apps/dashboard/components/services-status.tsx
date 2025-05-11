@@ -51,8 +51,8 @@ export function ServicesStatus({ onRestartService }: ServicesStatusProps) {
   // Handle restart service
   const handleRestartService = async (serviceName: string, slot: string) => {
     try {
-      setRefreshing({ ...refreshing, [`${serviceName}-${slot}`]: true });
-      await fetch(`http://localhost:8100/restart/${serviceName}/${slot}`, {
+      setRefreshing({ ...refreshing, [`szakdoga2025-${serviceName}-${slot}`]: true });
+      await fetch(`http://localhost:8100/restart/szakdoga2025-${serviceName}-${slot}`, {
         method: 'POST'
       });
       toast({
@@ -69,7 +69,7 @@ export function ServicesStatus({ onRestartService }: ServicesStatusProps) {
         variant: 'destructive',
       });
     } finally {
-      setRefreshing({ ...refreshing, [`${serviceName}-${slot}`]: false });
+      setRefreshing({ ...refreshing, [`szakdoga2025-${serviceName}-${slot}`]: false });
     }
   };
 

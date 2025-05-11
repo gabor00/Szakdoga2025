@@ -89,7 +89,7 @@ class DockerManager:
             logger.info(f"Deploying {image_name} to {service_name} {slot} slot")
             
             # Define container parameters
-            container_name = f"szakdoga2025-{service_name}-{slot}-1"
+            container_name = f"szakdoga2025-{service_name}-{slot}"
             labels = {
                 "service": service_name,
                 "slot": slot,
@@ -122,7 +122,7 @@ class DockerManager:
     
     def _stop_container(self, service_name: str, slot: str) -> bool:
         """Stop and remove existing container in the slot."""
-        container_name = f"szakdoga2025-{service_name}-{slot}-1"
+        container_name = f"szakdoga2025-{service_name}-{slot}"
         try:
             containers = self.client.containers.list(
                 all=True,
@@ -147,8 +147,8 @@ class DockerManager:
         """Update Traefik configuration to balance traffic between slots."""
         try:
             # Create Traefik dynamic configuration
-            blue_container_name = f"szakdoga2025-{service_name}-blue-1"
-            green_container_name = f"szakdoga2025-{service_name}-green-1"
+            blue_container_name = f"szakdoga2025-{service_name}-blue"
+            green_container_name = f"szakdoga2025-{service_name}-green"
             
             # Update container labels for Traefik routing weights
             containers = self.client.containers.list(
@@ -159,12 +159,12 @@ class DockerManager:
                 if container.labels.get('slot') == 'blue':
                     container.update(labels={
                         **container.labels,
-                        f"traefik.http.services.{blue_container_name}.loadbalancer.weight": str(blue_weight)
+                        f"traefik.http.services.{service_name}.weighted.services.{blue_container_name}.weight": str(blue_weight)
                     })
                 elif container.labels.get('slot') == 'green':
                     container.update(labels={
                         **container.labels,
-                        f"traefik.http.services.{green_container_name}.loadbalancer.weight": str(green_weight)
+                        f"traefik.http.services.{service_name}.weighted.services.{green_container_name}.weight": str(green_weight)
                     })
             
             return True
@@ -175,7 +175,7 @@ class DockerManager:
     def restart_service(self, service_name: str, slot: str) -> bool:
         """Restart a service in the specified slot."""
         try:
-            container_name = f"szakdoga2025-{service_name}-{slot}-1"
+            container_name = f"szakdoga2025-{service_name}-{slot}"
             containers = self.client.containers.list(
                 all=True,
                 filters={"name": container_name}
