@@ -7,6 +7,8 @@ import docker
 import time
 from pydantic import BaseModel
 import asyncio
+import requests
+from requests.exceptions import RequestException
 
 
 from git_watcher import GitWatcher
@@ -39,9 +41,9 @@ app.add_middleware(
 
 # Szolgáltatások állapota
 service_states = {
-    "microservice1": {"blue": "idle", "green": "idle", "active_slot": None, "version": None},
-    "microservice2": {"blue": "idle", "green": "idle", "active_slot": None, "version": None},
-    "microservice3": {"blue": "idle", "green": "idle", "active_slot": None, "version": None}
+    "microservice1": {"blue": "idle", "green": "idle", "version": None},
+    "microservice2": {"blue": "idle", "green": "idle", "version": None},
+    "microservice3": {"blue": "idle", "green": "idle", "version": None}
 }
 
 # Deployment státuszok
@@ -132,8 +134,7 @@ def start_container(service: str, version: str, slot: str):
         logger.error(f"Hiba a konténer indításakor: {e}")
         raise HTTPException(status_code=500, detail=f"Hiba a konténer indításakor: {str(e)}")
 
-import requests
-from requests.exceptions import RequestException
+
 
 async def deploy_service(service: str, version: str, slot: str, background_tasks: BackgroundTasks):
     deployment_id = f"{service}-{version}-{slot}-{int(time.time())}"
@@ -227,6 +228,30 @@ async def get_services_status():
     diagnostics_data = await run_diagnostics()
     diagnostics_info = diagnostics_data.get("diagnostics", {})
     
+    # Traefik konfigurációs fájl beolvasása
+    try:
+        import yaml
+        config_file = "/etc/traefik/dynamic/services.yml"
+        
+        with open(config_file, 'r') as file:
+            config = yaml.safe_load(file)
+        
+        # Súlyok kinyerése a konfigurációból
+        weights = {}
+        for service_name, service_config in config["http"]["services"].items():
+            if service_name.startswith("szakdoga2025-") and "weighted" in service_config:
+                service_short_name = service_name.replace("szakdoga2025-", "")
+                weights[service_short_name] = {}
+                
+                for weighted_service in service_config["weighted"]["services"]:
+                    if weighted_service["name"].endswith("-blue"):
+                        weights[service_short_name]["blue"] = weighted_service["weight"]
+                    elif weighted_service["name"].endswith("-green"):
+                        weights[service_short_name]["green"] = weighted_service["weight"]
+    except Exception as e:
+        logger.error(f"Hiba a Traefik konfigurációs fájl olvasásakor: {e}")
+        weights = {}
+    
     result = []
     for service, state in service_states.items():
         blue_key = f"szakdoga2025-{service}-blue"
@@ -250,18 +275,22 @@ async def get_services_status():
         elif green_status == "active" and state["green"] != "active":
             state["green"] = green_status
         
-        # Aktív slot meghatározása
-        if not state["active_slot"] and (blue_status == "active" or green_status == "active"):
-            state["active_slot"] = "blue" if blue_status == "active" else "green"
+        # Súlyok lekérése a Traefik konfigurációból
+        blue_weight = 0
+        green_weight = 0
+        if service in weights:
+            blue_weight = weights[service].get("blue", 0)
+            green_weight = weights[service].get("green", 0)
         
         result.append({
             "service": service,
             "blue_slot": state["blue"],
             "green_slot": state["green"],
-            "active_slot": state["active_slot"],
             "version": state["version"],
             "blue_running": blue_info.get("running", False),
-            "green_running": green_info.get("running", False)
+            "green_running": green_info.get("running", False),
+            "blue_weight": blue_weight,
+            "green_weight": green_weight
         })
     
     return {"services": result}

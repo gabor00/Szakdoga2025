@@ -4,9 +4,9 @@ http:
       weighted:
         services:
         - name: szakdoga2025-microservice1-blue
-          weight: 50
+          weight: 25
         - name: szakdoga2025-microservice1-green
-          weight: 50
+          weight: 75
     szakdoga2025-microservice1-blue:
       loadBalancer:
         servers:
@@ -34,9 +34,9 @@ http:
       weighted:
         services:
         - name: szakdoga2025-microservice3-blue
-          weight: 0
-        - name: szakdoga2025-microservice3-green
           weight: 100
+        - name: szakdoga2025-microservice3-green
+          weight: 0
     szakdoga2025-microservice3-blue:
       loadBalancer:
         servers:
