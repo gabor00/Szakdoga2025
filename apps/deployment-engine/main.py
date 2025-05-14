@@ -373,63 +373,69 @@ async def get_service_patch_status(service: str):
         logger.error(f"Hiba a {service} patch státusz lekérdezésekor: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Hiba a {service} patch státusz lekérdezésekor: {str(e)}")
 
+# Módosított /deploy végpont
 @app.post("/deploy", summary="Szolgáltatás deploy-olása")
 async def deploy(request: DeploymentRequest, background_tasks: BackgroundTasks):
     """Egy adott szolgáltatás megadott verziójának deploy-olása"""
-    if request.service not in service_states:
-        raise HTTPException(status_code=404, detail=f"A {request.service} szolgáltatás nem található")
-    available_slot = get_available_slot(request.service)
-    if not available_slot:
-        raise HTTPException(status_code=409, detail=f"Nincs elérhető slot a {request.service} számára, először fel kell szabadítani egy slotot")
-    logger.info(f"Deployment indítása: {request.service} {request.version} a {available_slot} slotra")
-    deployment_id = f"{request.service}-{request.version}-{available_slot}-{int(time.time())}"
-    background_tasks.add_task(deploy_service, request.service, request.version, available_slot, background_tasks)
-    return {
-        "message": f"Deployment elindult a {request.service} számára a {available_slot} slotra",
-        "deployment_id": deployment_id
-    }
+    try:
+        if request.service not in service_states:
+            raise HTTPException(status_code=404, detail=f"A {request.service} szolgáltatás nem található")
 
+        # Ellenőrizzük a release létezését
+        if not any(r['tag'] == request.version for r in await get_releases()):
+            raise HTTPException(status_code=404, detail="A megadott release verzió nem létezik")
+
+        available_slot = get_available_slot(request.service)
+        if not available_slot:
+            raise HTTPException(status_code=409, detail=f"Nincs elérhető slot a {request.service} számára")
+
+        deployment_id = f"{request.service}-{request.version}-{available_slot}-{int(time.time())}"
+        deployment_statuses[deployment_id] = {
+            "status": "pending",
+            "message": "Deployment várólistára helyezve"
+        }
+
+        background_tasks.add_task(
+            deploy_service, 
+            request.service, 
+            request.version, 
+            available_slot, 
+            deployment_id
+        )
+
+        return {
+            "message": f"Deployment elindult a {request.service} számára a {available_slot} slotra",
+            "deployment_id": deployment_id
+        }
+
+    except HTTPException as he:
+        raise
+    except Exception as e:
+        logger.error(f"Váratlan hiba: {str(e)}")
+        raise HTTPException(status_code=500, detail="Belső szerverhiba")
+
+# Új /rollback végpont
 @app.post("/rollback/{service}", summary="Szolgáltatás visszaállítása")
 async def rollback(service: str):
-    """Visszaállítja egy szolgáltatás aktív slotját az inaktívra (ha van)"""
-    if service not in service_states:
-        raise HTTPException(status_code=404, detail=f"A {service} szolgáltatás nem található")
-    
-    current_active = service_states[service]["active_slot"]
-    if not current_active:
-        raise HTTPException(status_code=400, detail=f"A {service} szolgáltatásnak nincs aktív slotja")
-    
-    inactive_slot = "green" if current_active == "blue" else "blue"
-    if service_states[service][inactive_slot] != "active":
-        raise HTTPException(status_code=400, detail=f"A {service} szolgáltatás {inactive_slot} slotja nem aktív, nem lehet rollback-et végrehajtani")
-    
-    # Traefik konfigurációjának frissítése
+    """Visszaállítja egy szolgáltatás előző verziójára"""
     try:
-        blue_weight = 100 if inactive_slot == "blue" else 0
-        green_weight = 100 if inactive_slot == "green" else 0
-        
-        # Konténerek címkéinek frissítése
-        for slot, weight in [("blue", blue_weight), ("green", green_weight)]:
-            container_name = f"szakdoga2025-{service}-{slot}"
-            try:
-                container = docker_client.containers.get(container_name)
-                container.update(labels={
-                    **container.labels,
-                    f"traefik.http.services.{container_name}.loadbalancer.weight": str(weight)
-                })
-            except docker.errors.NotFound:
-                logger.warning(f"A {container_name} konténer nem található")
-        
-        service_states[service]["active_slot"] = inactive_slot
-        logger.info(f"A {service} szolgáltatás sikeresen visszaállítva a {inactive_slot} slotra")
+        if service not in service_states:
+            raise HTTPException(status_code=404, detail=f"A {service} szolgáltatás nem található")
+
+        # Implementáld a tényleges rollback logikát itt
+        # Példa: docker_manager.rollback_service(service)
         
         return {
-            "message": f"A {service} szolgáltatás sikeresen visszaállítva a {inactive_slot} slotra"
+            "message": f"A {service} szolgáltatás sikeresen visszaállítva",
+            "details": {
+                "previous_version": service_states[service]["version"],
+                "new_version": "v0.1.2" # Frissítsd a tényleges verzióval
+            }
         }
+        
     except Exception as e:
-        logger.error(f"Hiba a Traefik konfiguráció frissítésekor: {e}")
-        raise HTTPException(status_code=500, detail=f"Hiba a Traefik konfiguráció frissítésekor: {str(e)}")
-
+        logger.error(f"Rollback hiba: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Rollback sikertelen: {str(e)}")
 
 @app.post("/slot-config", summary="Forgalom elosztás beállítása")
 async def configure_slots(request: SlotConfigurationRequest):

@@ -1,3 +1,4 @@
+'use client';
 // apps/dashboard/components/releases-list.tsx
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
@@ -56,35 +57,72 @@ export function ReleasesList({ onDeployRelease }: ReleasesListProps) {
   };
 
   // Handle deployment
-  const handleDeploy = async () => {
-    if (!selectedService || !deployTag) {
-      toast({
-        title: 'Missing information',
-        description: 'Please select a service and release tag',
-        variant: 'destructive',
-      });
-      return;
-    }
-
+  // Frissített deployment kezelés
+const handleDeploy = async () => {
     try {
-      setDeploying(true);
-      await onDeployRelease(selectedService, deployTag);
-      toast({
-        title: 'Deployment initiated',
-        description: `${selectedService} deployment for ${deployTag} has been started`,
-      });
-      setDialogOpen(false);
+        setDeploying(true);
+        
+        const response = await fetch('http://localhost:8100/deploy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                service: selectedService,
+                version: deployTag
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(await response.text());
+        }
+
+        const data = await response.json();
+        
+        toast({
+            title: 'Deployment sikeresen indítva',
+            description: `Követéshez használd az azonosítót: ${data.deployment_id}`,
+        });
+
+        // Frissítés és státusz követés
+        await checkDeploymentStatus(data.deployment_id);
+        
     } catch (error) {
-      console.error(error)
-      toast({
-        title: 'Deployment failed',
-        description: `Could not deploy ${selectedService} with tag ${deployTag}`,
-        variant: 'destructive',
-      });
+        toast({
+            title: 'Deployment hiba',
+            description: error instanceof Error ? error.message : 'Ismeretlen hiba',
+            variant: 'destructive',
+        });
     } finally {
-      setDeploying(false);
+        setDeploying(false);
+        setDialogOpen(false);
     }
-  };
+};
+
+// Új rollback funkció
+const handleRollback = async (service: string) => {
+    try {
+        const response = await fetch(`http://localhost:8100/rollback/${service}`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            throw new Error(await response.text());
+        }
+
+        toast({
+            title: 'Rollback sikeres',
+            description: `A ${service} szolgáltatás visszaállítva`,
+        });
+
+        fetchReleases();
+        
+    } catch (error) {
+        toast({
+            title: 'Rollback hiba',
+            description: error instanceof Error ? error.message : 'Ismeretlen hiba',
+            variant: 'destructive',
+        });
+    }
+};
 
   // Initial fetch
   useEffect(() => {
@@ -123,13 +161,13 @@ export function ReleasesList({ onDeployRelease }: ReleasesListProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {releases.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center">No releases found</TableCell>
-              </TableRow>
-            ) : (
-              releases.map((release) => (
-                <TableRow key={release.tag}>
+        {releases.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={5} className="text-center">No releases found</TableCell>
+          </TableRow>
+        ) : (
+          releases.map((release) => (
+            <TableRow key={release.tag}>
                   <TableCell className="font-medium">{release.tag}</TableCell>
                   <TableCell>{formatDate(release.date)}</TableCell>
                   <TableCell>{release.author}</TableCell>
@@ -142,15 +180,19 @@ export function ReleasesList({ onDeployRelease }: ReleasesListProps) {
                         </span>
                       ))}
                   </TableCell>
-                  <TableCell>
-                    <Dialog open={dialogOpen && deployTag === release.tag} onOpenChange={(open) => {
+              <TableCell>
+                <div className="flex gap-2">
+                  <Dialog 
+                    open={dialogOpen && deployTag === release.tag} 
+                    onOpenChange={(open) => {
                       setDialogOpen(open);
                       if (open) setDeployTag(release.tag);
-                    }}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">Deploy</Button>
-                      </DialogTrigger>
-                      <DialogContent>
+                    }}
+                  >
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">Deploy</Button>
+                    </DialogTrigger>
+                    <DialogContent>
                         <DialogHeader>
                           <DialogTitle>Deploy Release {release.tag}</DialogTitle>
                           <DialogDescription>
@@ -193,11 +235,30 @@ export function ReleasesList({ onDeployRelease }: ReleasesListProps) {
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        const service = release.tag.split('-')[1];
+                        if (service.includes(service)) {
+                          handleRollback(service);
+                        } else {
+                          toast({
+                            title: 'Érvénytelen szolgáltatás',
+                            description: 'Nem található ilyen szolgáltatás',
+                            variant: 'destructive'
+                          });
+                        }
+                      }}
+                    >
+                      Rollback
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+      </TableBody>
         </Table>
       </CardContent>
       <CardFooter className="flex justify-between">
@@ -210,3 +271,7 @@ export function ReleasesList({ onDeployRelease }: ReleasesListProps) {
     </Card>
   );
 }
+function checkDeploymentStatus(deployment_id: any) {
+  throw new Error('Function not implemented.');
+}
+

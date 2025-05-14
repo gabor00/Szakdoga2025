@@ -120,28 +120,32 @@ class DockerManager:
             logger.error(f"Error deploying {service_name} to {slot} slot: {str(e)}")
             return False
     
-    def _stop_container(self, service_name: str, slot: str) -> bool:
-        """Stop and remove existing container in the slot."""
-        container_name = f"szakdoga2025-{service_name}-{slot}"
+    def rollback_service(self, service_name: str) -> bool:
+        """Visszaállítási logika implementációja"""
         try:
-            containers = self.client.containers.list(
-                all=True,
-                filters={"name": container_name}
+            current_status = self.get_service_status(service_name)
+            active_slot = 'green' if current_status['blue']['status'] == 'active' else 'blue'
+        
+            # 1. Megállítjuk az aktuális konténert
+            self._stop_container(service_name, active_slot)
+        
+            # 2. Előző image betöltése
+            images = self.client.images.list(name=f"{service_name}:*")
+            if len(images) < 2:
+                raise ValueError("Nincs elérhető előző verzió")
+            
+            previous_image = sorted(images, key=lambda i: i.tags[0])[-2].tags[0]
+        
+            # 3. Újraindítás előző verzióval
+            return self.deploy_to_slot(
+                service_name=service_name,
+                image_name=previous_image,
+                slot=active_slot
             )
-            
-            if containers:
-                container = containers[0]
-                if container.status != 'exited':
-                    logger.info(f"Stopping container {container_name}")
-                    container.stop(timeout=10)
-                
-                logger.info(f"Removing container {container_name}")
-                container.remove()
-            
-            return True
-        except DockerException as e:
-            logger.error(f"Error stopping container {container_name}: {str(e)}")
-            return False
+        
+        except Exception as e:
+            logger.error(f"Rollback hiba: {str(e)}")
+            return False  
     
     def update_traefik_config(self, service_name: str, blue_weight: int, green_weight: int) -> bool:
         """Update Traefik configuration to balance traffic between slots."""

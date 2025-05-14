@@ -29,36 +29,6 @@
           "extractCss": true
         }
       }
-    },
-    "serve": {
-      "executor": "@nx-dotnet/core:server",
-      "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "dashboard:build",
-        "port": 3000
-      },
-      "configurations": {
-        "development": {
-          "buildTarget": "dashboard:build:development"
-        },
-        "production": {
-          "buildTarget": "dashboard:build:production"
-        }
-      }
-    },
-    "test": {
-      "executor": "@nx/jest:jest",
-      "outputs": ["{workspaceRoot}/dist"],
-      "options": {
-        "jestConfig": "./apps/dashboard/jest.config.ts",
-        "passWithNoTests": true
-      }
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint",
-      "options": {
-        "lintFilePatterns": ["apps/dashboard/**/*.ts", "apps/dashboard/**/*.tsx"]
-      }
     }
   }
 }

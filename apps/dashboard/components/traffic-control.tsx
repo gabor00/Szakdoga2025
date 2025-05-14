@@ -1,3 +1,4 @@
+'use client';
 // apps/dashboard/components/traffic-control.tsx
 import { useState} from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
