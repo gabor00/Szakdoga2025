@@ -4,6 +4,14 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "start": "nx serve dashboard",
+    "build": "nx run-many --target=build --all",
+    "test": "nx run-many --target=test --all",
+    "docker:build": "nx run docker:build",
+    "docker:up": "nx run docker:up",
+    "docker:down": "nx run docker:down",
+    "docker:logs": "nx run docker:logs",
+    "docker:ps": "nx run docker:ps"
   },
   "private": true,
   "devDependencies": {
