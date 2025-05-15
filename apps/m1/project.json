@@ -2,15 +2,19 @@
     "name": "m1",
     "targets": {
       
-      "docker-build": {
-        "executor": "@nx-tools/nx-container:build",
-        "options": {
-          "dockerFile": "Dockerfile",
-          "context": "./apps/m1",
-          "push": false,
-          "tags": ["m1"]
+      "build": {
+      "executor": "@nx-tools/nx-container:build",
+      "options": {
+        "dockerFile": "Dockerfile",
+        "context": "apps/m1",
+        "push": true,
+        "metadata": {
+          "images": ["ghcr.io/gabor00/m1"],
+          "tag": ["type=semver,pattern={{major}}.{{minor}}"],
+          "labels": ["org.opencontainers.image.source=https://github.com/gabor00/Szakdoga2025"]
         }
-      },
+      }
+    },
       "docker-run": {
         "executor": "@nx-tools/nx-container:run",
         "options": {

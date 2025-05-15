@@ -2,13 +2,17 @@
   "name": "m3",
   "targets": {
     
-    "docker-build": {
+    "build": {
       "executor": "@nx-tools/nx-container:build",
       "options": {
         "dockerFile": "Dockerfile",
         "context": "apps/m3",
-        "push": false,
-        "tags": ["m3"]
+        "push": true,
+        "metadata": {
+          "images": ["ghcr.io/gabor00/m3"],
+          "tag": ["type=semver,pattern={{major}}.{{minor}}"],
+          "labels": ["org.opencontainers.image.source=https://github.com/gabor00/Szakdoga2025"]
+        }
       }
     },
     "docker-run": {

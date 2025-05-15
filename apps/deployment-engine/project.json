@@ -5,6 +5,15 @@
   "projectType": "application",
   "targets": {
     "build": {
+        "executor": "@nx-tools/nx-container:build",
+        "options": {
+          "dockerFile": "Dockerfile",
+          "context": "./apps/deployment-engine",
+          "push": true,
+          "tags": ["deployment-engine"]
+        }
+      },
+    "build-local": {
       "executor": "nx:run-commands",
       "options": {
         "command": "docker build -t deployment-engine:latest .",
@@ -20,29 +29,7 @@
           "sourceMap": false
         }
       }
-    },
-    "serve": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "python main.py",
-        "cwd": "apps/deployment-engine"
-      }
-    },
-    "test": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "pytest",
-        "cwd": "apps/deployment-engine"
-      }
-    },
-    "lint": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "flake8 src/",
-        "cwd": "apps/deployment-engine"
-      }
     }
-  },
-    "tags": ["backend", "deployment"]
+  }
 }
   
