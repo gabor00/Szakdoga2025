@@ -2,7 +2,7 @@ name: CI
 
 on:
   release:
-    types: [created]
+    types: [published]
 
 
 
@@ -26,4 +26,4 @@ jobs:
       
       - name: Log in to registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      - run: npx nx affected --base=$NX_BASE --head=$NX_HEAD --target=build --parallel=2
+      - run: INPUT_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} npx nx affected --base=$NX_BASE --head=$NX_HEAD --target=build --parallel=2
