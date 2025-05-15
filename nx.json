@@ -44,17 +44,7 @@
         "defaultEngine": "docker",
         "defaultRegistry": "docker.io"
       }
-    },
-    {
-      "plugin": "@nx-dotnet/core",
-      "options": {
-        "inferredTargets": {
-          "build": "build",
-          "test": "test",
-          "serve": "serve",
-          "lint": "lint"
-        }
-      }
     }
+    
   ]
 }
