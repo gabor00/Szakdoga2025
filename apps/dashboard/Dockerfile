@@ -40,11 +40,7 @@ RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder ./app/public ./public
 
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Automatically leverage output traces to reduce image size
+# Copy the standalone output
 COPY --from=builder --chown=nextjs:nodejs ./app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs ./app/.next/static ./.next/static
 
@@ -56,5 +52,4 @@ ENV PORT 3000
 # Környezeti változók, ha szükséges
 # ENV DEPLOYMENT_ENGINE_URL=http://deployment-engine:8000
 
-# Server.js használata, ami a standalone output része
 CMD ["node", "server.js"]

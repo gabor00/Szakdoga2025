@@ -1,3 +1,5 @@
+#apps/deployment-engine/git_watcher.py
+
 import os
 import asyncio
 import logging
@@ -23,10 +25,11 @@ logging.basicConfig(
         logging.FileHandler("deployment_engine.log")
     ]
 )
+
 logger = logging.getLogger(__name__)
 
 # Szolgáltatások listája
-SERVICES = ["m1", "m2", "m3", "dashboard", "deployment-engine"]  
+SERVICES = ["m1", "m2", "m3", "dashboard", "deployment-engine"]
 
 class GitWatcher:
     def __init__(self, repo_url: str = REPO_URL, repo_path: str = REPO_PATH):
@@ -118,14 +121,15 @@ class GitWatcher:
             
             if not parent:
                 return {k: True for k in changes}
-                
+            
             diff_index = parent.diff(commit)
+            
             for diff_item in diff_index:
                 file_path = diff_item.a_path or diff_item.b_path
                 for service in changes.keys():
                     if file_path and file_path.startswith(f"apps/{service}/"):
                         changes[service] = True
-                        
+            
             return changes
         except Exception as e:
             logger.error(f"Hiba a commit változások elemzésekor: {str(e)}")
@@ -137,7 +141,7 @@ class GitWatcher:
             tags = self.get_release_tags()
             if not tags:
                 return None
-                
+            
             latest_tag = tags[-1]
             return self.get_release_details(latest_tag)
         except Exception as e:
@@ -150,8 +154,9 @@ class GitWatcher:
             service_path = os.path.join(self.repo_path, "apps", service)
             if not os.path.isdir(service_path):
                 return {"service": service, "error": "Service directory not found"}
-                
+            
             repo = self.repo
+            
             # Uncommitted changes
             changed_files = [item.a_path or item.b_path for item in repo.index.diff(None)]
             uncommitted_changes = any(f.startswith(f"apps/{service}/") for f in changed_files)
@@ -166,7 +171,7 @@ class GitWatcher:
             except Exception as e:
                 logger.warning(f"Nem sikerült ellenőrizni a remote állapotot: {str(e)}")
                 behind_count = None
-                
+            
             return {
                 "service": service,
                 "uncommitted_changes": uncommitted_changes,
@@ -183,10 +188,12 @@ class GitWatcher:
     async def watch_for_releases(self, callback):
         """Figyeli az új release-eket és meghívja a callback függvényt"""
         logger.info("Release figyelés elindítva...")
+        
         while True:
             try:
                 self.repo.remote().fetch()
                 latest_release = self.get_latest_release()
+                
                 if latest_release and latest_release['tag'] not in self.latest_releases:
                     logger.info(f"Új release észlelve: {latest_release['tag']}")
                     self.latest_releases[latest_release['tag']] = latest_release
@@ -199,7 +206,6 @@ class GitWatcher:
             logger.debug(f"Várakozás {POLL_INTERVAL} másodpercig...")
             await asyncio.sleep(POLL_INTERVAL)
 
-
 # Ha közvetlenül futtatjuk a fájlt, teszteljük a repo elérhetőségét
 if __name__ == "__main__":
     try:
@@ -208,15 +214,15 @@ if __name__ == "__main__":
         
         watcher = GitWatcher()
         latest = watcher.get_latest_release()
+        
         if latest:
             print(f"Legfrissebb release: {latest['tag']} ({latest['date']})")
         else:
             print("Nincs elérhető release")
-            
+        
         print("\nSzolgáltatások állapota:")
         for status in watcher.get_all_services_patch_status():
-            print(f"  - {status['service']}: {'OK' if 'error' not in status else status['error']}")
-            
+            print(f" - {status['service']}: {'OK' if 'error' not in status else status['error']}")
     except Exception as e:
         print(f"Hiba: {str(e)}")
         sys.exit(1)

@@ -1,27 +1,32 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import './globals.css';
+import type React from "react"
+import { Inter } from "next/font/google"
+import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
+import { Sidebar } from "@/components/sidebar"
 
-// Font betöltése
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ["latin"] })
 
-export const metadata: Metadata = {
-  title: 'Mikroszolgáltatás Dashboard',
-  description: 'Monorepo mikroszolgáltatások kezelése',
-};
+export const metadata = {
+  title: "Deployment Management Tool",
+  description: "Manage deployments for your microservices",
+    generator: 'v0.dev'
+}
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
-    <html lang="hu">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
-          {children}
-        </main>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <div className="flex h-screen">
+            <Sidebar />
+            <div className="flex-1 overflow-auto">{children}</div>
+          </div>
+        </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }

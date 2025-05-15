@@ -1,35 +1,47 @@
 {
   "name": "dashboard",
-  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "apps/dashboard",
   "projectType": "application",
   "targets": {
     "build": {
       "executor": "@nx/next:build",
-      "outputs": ["{workspaceRoot}/dist/apps/dashboard"],
+      "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "configuration": "Debug",
-        "properties": {
-          "OutputPath": "apps/dashboard"
-        }
-      },  
+        "outputPath": "dist/apps/dashboard"
+      },
       "configurations": {
         "development": {
-          "outputPath": "apps/dashboard",
-          "dev": true,
-          "optimization": false,
-          "sourceMap": true,
-          "extractCss": true
+          "outputPath": "apps/dashboard"
+        },
+        "production": {}
+      }
+    },
+    "serve": {
+      "executor": "@nx/next:server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "dashboard:build",
+        "dev": true
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "dashboard:build:development",
+          "dev": true
         },
         "production": {
-          "outputPath": "apps/dashboard",
-          "optimization": true,
-          "sourceMap": true,
-          "extractCss": true
+          "buildTarget": "dashboard:build:production",
+          "dev": false
         }
       }
+    },
+    "export": {
+      "executor": "@nx/next:export",
+      "options": {
+        "buildTarget": "dashboard:build:production"
+      }
     }
-  }
+  },
+  "tags": ["type:app", "scope:deployment"]
 }
-
