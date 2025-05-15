@@ -1,8 +1,8 @@
 {
-    "name": "m2",
-    "targets": {
+  "name": "m2",
+  "targets": {
       
-      "container": {
+    "container": {
       "executor": "@nx-tools/nx-container:build",
       "options": {
         "dockerFile": "Dockerfile",
@@ -15,12 +15,12 @@
         }
       }
     },
-      "docker-run": {
-        "executor": "@nx-tools/nx-container:run",
-        "options": {
-          "image": "m2",
-          "ports": ["8000:8000"]
-        }
+    "docker-run": {
+      "executor": "@nx-tools/nx-container:run",
+      "options": {
+        "image": "m2",
+        "ports": ["8000:8000"]
       }
     }
-    }
+  }
+}
