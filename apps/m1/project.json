@@ -2,7 +2,7 @@
     "name": "m1",
     "targets": {
       
-      "build": {
+      "container": {
       "executor": "@nx-tools/nx-container:build",
       "options": {
         "dockerFile": "Dockerfile",
