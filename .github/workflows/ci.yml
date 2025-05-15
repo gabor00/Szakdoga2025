@@ -8,6 +8,7 @@ jobs:
   main:
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       packages: write
     steps:
@@ -24,4 +25,4 @@ jobs:
       
       - name: Log in to registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      - run: INPUT_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} npx nx affected --target=container --parallel=2
+      - run: INPUT_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} npx nx affected --target=container --base=$NX_BASE --head=$NX_HEAD  --parallel=2
