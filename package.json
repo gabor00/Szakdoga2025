@@ -24,7 +24,6 @@
     "@nx/esbuild": "^20.8.0",
     "@nx/eslint": "^20.8.0",
     "@nx/eslint-plugin": "^20.8.0",
-    "@nx/jest": "^20.8.0",
     "@nx/js": "^20.8.0",
     "@nx/linter": "^19.8.4",
     "@nx/next": "^20.8.0",
@@ -58,7 +57,6 @@
     "packages/*"
   ],
   "dependencies": {
-    "@nx-tools/container-metadata": "^6.1.1",
     "@radix-ui/react-slot": "^1.2.0",
     "@radix-ui/react-tabs": "^1.1.4",
     "@radix-ui/react-toast": "^1.2.7",
