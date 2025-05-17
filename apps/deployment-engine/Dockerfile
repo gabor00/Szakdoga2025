@@ -13,7 +13,7 @@ RUN apt-get update && \
 
 # Python függőségek telepítése
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt 
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Alkalmazás fájlok másolása
 COPY . .

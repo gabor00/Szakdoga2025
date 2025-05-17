@@ -7,6 +7,7 @@ import sys
 from git import Repo, exc
 from typing import List, Dict, Optional
 from datetime import datetime
+import requests
 
 # Relatív útvonal használata a projekt gyökeréhez
 # BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -84,34 +85,99 @@ class GitWatcher:
             raise
 
     def get_release_tags(self) -> List[str]:
-        """Az összes release tag lekérése"""
+        """Az összes release tag lekérése GitHub API-n keresztül"""
         try:
-            tags = [tag.name for tag in self.repo.tags if tag.name.startswith('release-')]
+            # GitHub API használata a releases lekéréséhez
+            repo_parts = self.repo_url.split('/')
+            owner = repo_parts[-2]
+            repo = repo_parts[-1]
+        
+            # GitHub API hívás
+            api_url = f"https://api.github.com/repos/{owner}/{repo}/tags"  # Változás: /releases helyett /tags
+            response = requests.get(api_url)
+        
+            if response.status_code != 200:
+                logger.error(f"GitHub API hiba: {response.status_code} - {response.text}")
+                return []
+            
+            tags_data = response.json()
+            # Tag nevek kinyerése a válaszból
+            tags = [tag["name"] for tag in tags_data]
             return sorted(tags)
         except Exception as e:
             logger.error(f"Hiba a tagek lekérésekor: {str(e)}")
             return []
 
     def get_release_details(self, tag: str) -> Dict:
-        """Egy adott tag részleteinek lekérése"""
+        """Egy adott tag részleteinek lekérése GitHub API-n keresztül"""
         try:
-            tag_obj = next((t for t in self.repo.tags if t.name == tag), None)
-            if not tag_obj:
-                logger.error(f"Tag {tag} not found in repository")
+            # GitHub API használata a tag részletek lekéréséhez
+            repo_parts = self.repo_url.split('/')
+            owner = repo_parts[-2]
+            repo = repo_parts[-1]
+        
+            # GitHub API hívás a tag commit adatainak lekéréséhez
+            api_url = f"https://api.github.com/repos/{owner}/{repo}/git/refs/tags/{tag}"
+            response = requests.get(api_url)
+        
+            if response.status_code != 200:
+                logger.error(f"GitHub API hiba (tag): {response.status_code} - {response.text}")
                 return {}
+            
+            tag_data = response.json()
+            commit_sha = tag_data.get("object", {}).get("sha", "")
+        
+            # Commit adatok lekérése
+            if commit_sha:
+                commit_url = f"https://api.github.com/repos/{owner}/{repo}/commits/{commit_sha}"
+                commit_response = requests.get(commit_url)
+            
+                if commit_response.status_code == 200:
+                    commit_data = commit_response.json()
                 
-            commit = tag_obj.commit
+                    # Változások meghatározása
+                    changes = {service: False for service in SERVICES}
+                
+                    # Feltételezzük, hogy minden szolgáltatás változott
+                    for service in SERVICES:
+                        changes[service] = True
+                
+                    return {
+                        'tag': tag,
+                        'hash': commit_sha,
+                        'author': commit_data.get("commit", {}).get("author", {}).get("name", ""),
+                        'date': commit_data.get("commit", {}).get("author", {}).get("date", ""),
+                        'message': commit_data.get("commit", {}).get("message", ""),
+                        'changes': changes
+                    }
+        
             return {
                 'tag': tag,
-                'hash': commit.hexsha,
-                'author': commit.author.name,
-                'date': datetime.fromtimestamp(commit.committed_date).isoformat(),
-                'message': commit.message.strip(),
-                'changes': self._get_changes_in_commit(commit)
+                'hash': "",
+                'author': "",
+                'date': "",
+                'message': "",
+                'changes': {service: True for service in SERVICES}
             }
         except Exception as e:
-            logger.error(f"Hiba a release részletek lekérésekor: {str(e)}")
+            logger.error(f"Hiba a tag részletek lekérésekor: {str(e)}")
             return {}
+    
+    def _get_changes_from_release_body(self, body: str) -> Dict[str, bool]:
+        """Kinyeri a változásokat a release leírásából"""
+        changes = {service: False for service in SERVICES}
+        
+        # Feltételezzük, hogy a release body tartalmazza a változásokat
+        # Például: "Changes: m1, m2" formátumban
+        if "Changes:" in body:
+            changes_part = body.split("Changes:")[1].strip()
+            changed_services = [s.strip() for s in changes_part.split(",")]
+            
+            for service in changed_services:
+                if service in changes:
+                    changes[service] = True
+        
+        return changes
 
     def _get_changes_in_commit(self, commit) -> Dict[str, bool]:
         """Meghatározza, mely szolgáltatások változtak a commitban"""

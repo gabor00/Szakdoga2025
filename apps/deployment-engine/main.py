@@ -200,7 +200,7 @@ async def root():
 
 @app.get("/releases", summary="Elérhető release verziók lekérdezése")
 async def get_releases():
-    """Visszaadja az összes elérhető release-t a Git repository-ból"""
+    """Visszaadja az összes elérhető release-t a GitHub repository-ból"""
     if not git_watcher:
         raise HTTPException(status_code=503, detail="Git Watcher szolgáltatás nem elérhető")
     
@@ -224,7 +224,7 @@ async def get_releases():
                 })
             
             # Ellenőrizzük, hogy ez a verzió már telepítve van-e valahol
-            is_deployed = any(state["version"] == tag for state in service_states.values())
+            is_deployed = any(state.get("version") == tag for state in service_states.values())
             
             releases.append({
                 "tag": tag,
@@ -493,9 +493,10 @@ async def deploy(request: DeploymentRequest, background_tasks: BackgroundTasks):
         if request.service not in service_states:
             raise HTTPException(status_code=404, detail=f"A {request.service} szolgáltatás nem található")
         
-        # Ellenőrizzük a release létezését
-        if not any(r['tag'] == request.version for r in await get_releases()):
-            raise HTTPException(status_code=404, detail="A megadott release verzió nem létezik")
+        # Ellenőrizzük a tag létezését a GitHub-on
+        tags = git_watcher.get_release_tags()
+        if request.version not in tags:
+            raise HTTPException(status_code=404, detail=f"A megadott tag ({request.version}) nem létezik")
         
         # Ha a slot nincs megadva, akkor keressünk egy elérhető slotot
         slot = request.slot if request.slot else get_available_slot(request.service)
@@ -508,9 +509,15 @@ async def deploy(request: DeploymentRequest, background_tasks: BackgroundTasks):
             "message": "Deployment várólistára helyezve"
         }
         
+        # GitHub Package Registry-ből való image használata
+        repo_parts = GIT_REPO_URL.split('/')
+        owner = repo_parts[-2]
+        image_name = f"ghcr.io/{owner}/{request.service}:{request.version}"
+        
         background_tasks.add_task(
-            deploy_service,
+            deploy_service_with_github_image,
             request.service,
+            image_name,
             request.version,
             slot,
             deployment_id
@@ -524,7 +531,55 @@ async def deploy(request: DeploymentRequest, background_tasks: BackgroundTasks):
         raise
     except Exception as e:
         logger.error(f"Váratlan hiba: {str(e)}")
-        raise HTTPException(status_code=500, detail="Belső szerverhiba")
+        raise HTTPException(status_code=500, detail=f"Belső szerverhiba: {str(e)}")
+
+async def deploy_service_with_github_image(service: str, image_name: str, version: str, slot: str, deployment_id: str):
+    """GitHub registry-ből származó image deploy-olása"""
+    try:
+        service_states[service][slot] = "deploying"
+        deployment_statuses[deployment_id] = {"status": "in_progress", "message": "Deployment elindult"}
+        
+        logger.info(f"Deployment indítása: {service} v{version} a {slot} slotra")
+        
+        # Docker image pull a GitHub registry-ből
+        try:
+            docker_client.images.pull(image_name)
+            logger.info(f"Image sikeresen letöltve: {image_name}")
+        except Exception as e:
+            logger.error(f"Hiba az image letöltésekor: {str(e)}")
+            service_states[service][slot] = "failed"
+            deployment_statuses[deployment_id] = {"status": "failed", "message": f"Hiba az image letöltésekor: {str(e)}"}
+            return
+        
+        # Konténer indítása
+        success = docker_manager.deploy_to_slot(service, image_name, slot)
+        
+        if success:
+            # Várjunk egy kicsit, hogy a konténer elinduljon
+            await asyncio.sleep(5)
+            
+            # Ellenőrizzük, hogy a konténer fut-e és válaszol-e
+            health_check_success = check_service_health(service, slot)
+            
+            if health_check_success:
+                # Sikeres deploy esetén
+                service_states[service][slot] = "active"
+                service_states[service]["version"] = version
+                deployment_statuses[deployment_id] = {"status": "success", "message": f"{service} v{version} sikeresen deploy-olva a {slot} slotra"}
+                logger.info(f"Sikeres deployment: {service} v{version} a {slot} slotra")
+            else:
+                # Ha a konténer nem válaszol, akkor hiba
+                service_states[service][slot] = "failed"
+                deployment_statuses[deployment_id] = {"status": "failed", "message": f"A {service} konténer nem válaszol a health check kérésekre"}
+                logger.error(f"Deployment hiba: {service} v{version} a {slot} slotra - konténer nem válaszol")
+        else:
+            service_states[service][slot] = "failed"
+            deployment_statuses[deployment_id] = {"status": "failed", "message": "Hiba a konténer indításakor"}
+            logger.error(f"Deployment hiba: {service} v{version} a {slot} slotra - konténer indítási hiba")
+    except Exception as e:
+        service_states[service][slot] = "failed"
+        deployment_statuses[deployment_id] = {"status": "failed", "message": str(e)}
+        logger.error(f"Deployment hiba: {service} v{version} a {slot} slotra - {e}")
 
 @app.post("/rollback/{service}", summary="Szolgáltatás visszaállítása")
 async def rollback(service: str):

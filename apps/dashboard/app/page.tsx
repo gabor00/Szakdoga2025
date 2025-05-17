@@ -201,7 +201,9 @@ export default function DeploymentsPage() {
                       {slot.services?.map((service) => (
                         <TableRow key={service.name}>
                           <TableCell>{service.name}</TableCell>
-                          <TableCell>{service.version}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{service.version || "unknown"}</Badge>
+                          </TableCell>
                           <TableCell>
                             <Badge variant={service.status === "healthy" ? "outline" : "destructive"}>
                               {service.status === "healthy" ? "Healthy" : "Warning"}
