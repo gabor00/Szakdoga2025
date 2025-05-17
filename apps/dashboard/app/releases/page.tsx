@@ -92,12 +92,11 @@ export default function ReleasesPage() {
         setIsLoading(false);
       });
   };
-  
-useEffect(() => {
-  // Automatikus adatlekérés az oldal betöltésekor
-  fetchReleases();
-}, []);
 
+  useEffect(() => {
+    // Automatikus adatlekérés az oldal betöltésekor
+    fetchReleases();
+  }, []);
 
   const handleDeploy = (tag: string) => {
     setSelectedRelease(tag);
@@ -135,14 +134,14 @@ useEffect(() => {
     
     // Minden kiválasztott szolgáltatásra indítunk egy deployment-et
     try {
-      const deployPromises = servicesToDeploy.map(service => 
+      const deployPromises = servicesToDeploy.map(service =>
         fetch('http://localhost:8100/deploy', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            service: service,
+            service: service, // Itt a service már a megfelelő formátumban van (microservice1, microservice2, stb.)
             version: selectedRelease,
             slot: selectedSlot === "slot-a" ? "blue" : "green"
           }),
@@ -294,7 +293,7 @@ useEffect(() => {
                     onCheckedChange={(checked) => handleServiceCheckboxChange("microservice1", checked as boolean)} 
                   />
                   <label htmlFor="microservice1" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Microservice 1
+                    Microservice 1 (m1)
                   </label>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -304,7 +303,7 @@ useEffect(() => {
                     onCheckedChange={(checked) => handleServiceCheckboxChange("microservice2", checked as boolean)} 
                   />
                   <label htmlFor="microservice2" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Microservice 2
+                    Microservice 2 (m2)
                   </label>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -314,7 +313,7 @@ useEffect(() => {
                     onCheckedChange={(checked) => handleServiceCheckboxChange("microservice3", checked as boolean)} 
                   />
                   <label htmlFor="microservice3" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Microservice 3
+                    Microservice 3 (m3)
                   </label>
                 </div>
               </div>
