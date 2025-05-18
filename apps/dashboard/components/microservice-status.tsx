@@ -64,25 +64,26 @@ export function MicroserviceStatus() {
   ]);
   
   useEffect(() => {
-    // Adatok lekérése a backendről
-    fetch('http://localhost:8100/traffic')
-      .then(res => res.json())
-      .then((data: TrafficService[]) => {
-        // Adatok átalakítása a komponens által várt formátumra
-        const services = data.map((service: TrafficService) => ({
-          id: service.id,
-          name: service.name,
-          status: service.slots[0].status,
-          version: service.slots[0].version,
-          slot: service.slots[0].id === "slot-a" ? "A" : "B",
-          traffic: service.slots[0].traffic,
-          lastDeployed: new Date().toISOString() // Ez az adat nem jön a backendről, így most használunk egy placeholder-t
-        }));
-        
-        setMicroservices(services);
-      })
-      .catch(err => console.error('Error fetching microservices:', err));
-  }, []);
+  // Adatok lekérése a backendről
+  fetch('http://localhost:8100/traffic')
+    .then(res => res.json())
+    .then((data: TrafficService[]) => {
+      // Adatok átalakítása a komponens által várt formátumra
+      const services = data.map((service: TrafficService) => ({
+        id: service.id,
+        name: service.name,
+        status: service.slots[0].status,
+        version: service.slots[0].version,  // Ez már a GitHub tag
+        slot: service.slots[0].id === "slot-a" ? "A" : "B",
+        traffic: service.slots[0].traffic,
+        lastDeployed: new Date().toISOString() // Ez az adat nem jön a backendről, így most használunk egy placeholder-t
+      }));
+      
+      setMicroservices(services);
+    })
+    .catch(err => console.error('Error fetching microservices:', err));
+}, []);
+
 
   // Event handlers
   const handleRefresh = () => {

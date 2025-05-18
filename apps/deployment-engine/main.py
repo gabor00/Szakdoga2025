@@ -61,6 +61,17 @@ except Exception as e:
     docker_client = None
     docker_manager = None
 
+# Ellenőrizzük, hogy létezik-e már a szakdoga2025-network hálózat
+try:
+    networks = docker_client.networks.list(names=["szakdoga2025_traefik-network"])
+    if not networks:
+        logger.info("Létrehozom a szakdoga2025_traefik-network hálózatot")
+        docker_client.networks.create("szakdoga2025_traefik-network", driver="bridge")
+    else:
+        logger.info("A szakdoga2025_traefik-network hálózat már létezik")
+except Exception as e:
+    logger.error(f"Hiba a hálózat létrehozásakor: {str(e)}")
+
 # Git repo elérési út - csak URL, nincs helyi klón
 GIT_REPO_URL = "https://github.com/gabor00/Szakdoga2025"
 
@@ -185,21 +196,22 @@ async def deploy_service(service: str, version: str, slot: str, deployment_id: s
         logger.error(f"Deployment hiba: {service} v{version} a {slot} slotra - {e}")
 
 async def deploy_service_with_github_image(service: str, image_name: str, version: str, slot: str, deployment_id: str):
-    """GitHub registry-ből származó image deploy-olása"""
+    """GitHub registry-ből származó image deploy-olása átnevezéssel"""
     try:
         service_states[service][slot] = "deploying"
         deployment_statuses[deployment_id] = {"status": "in_progress", "message": "Deployment elindult"}
         
         logger.info(f"Deployment indítása: {service} v{version} a {slot} slotra")
         
-        # Szolgáltatás nevének átalakítása a megfelelő GitHub Package névre
-        github_package_name = service.replace("microservice", "m")
+        # Az image_name helyett a github package név helyett a service és slot alapján új image nevet állítunk be
+        # Például: szakdoga2025-microservice1-blue
+        new_image_name = f"szakdoga2025-{service}-{slot}"
         
-        # Docker image pull a GitHub registry-ből a megfelelő package névvel
+        # Docker image pull a GitHub registry-ből a package névvel
         try:
-            # Az image_name helyett a github_package_name-et használjuk
             repo_parts = GIT_REPO_URL.split('/')
             owner = repo_parts[-2]
+            github_package_name = service.replace("microservice", "m")
             package_image_name = f"ghcr.io/{owner}/{github_package_name}:{version}"
             
             logger.info(f"Pulling image: {package_image_name}")
@@ -211,35 +223,78 @@ async def deploy_service_with_github_image(service: str, image_name: str, versio
             deployment_statuses[deployment_id] = {"status": "failed", "message": f"Hiba az image letöltésekor: {str(e)}"}
             return
         
-        # Konténer indítása - itt az eredeti service nevet használjuk
-        success = docker_manager.deploy_to_slot(service, package_image_name, slot)
+        # Az image átnevezése (tag átállítása) a helyi Dockerben
+        try:
+            image = docker_client.images.get(package_image_name)
+            image.tag(new_image_name, tag=version)
+            logger.info(f"Image átnevezve: {new_image_name}:{version}")
+        except Exception as e:
+            logger.error(f"Hiba az image átnevezésekor: {str(e)}")
+            service_states[service][slot] = "failed"
+            deployment_statuses[deployment_id] = {"status": "failed", "message": f"Hiba az image átnevezésekor: {str(e)}"}
+            return
         
-        if success:
-            # Várjunk egy kicsit, hogy a konténer elinduljon
-            await asyncio.sleep(5)
+        # Konténer indítása az új image névvel és a megfelelő konténer névvel
+        try:
+            # Előző konténer leállítása és törlése
+            docker_manager._stop_container(service, slot)
             
-            # Ellenőrizzük, hogy a konténer fut-e és válaszol-e
-            health_check_success = check_service_health(service, slot)
+            container_name = f"szakdoga2025-{service}-{slot}"
             
-            if health_check_success:
-                # Sikeres deploy esetén
-                service_states[service][slot] = "active"
-                service_states[service]["version"] = version
-                deployment_statuses[deployment_id] = {"status": "success", "message": f"{service} v{version} sikeresen deploy-olva a {slot} slotra"}
-                logger.info(f"Sikeres deployment: {service} v{version} a {slot} slotra")
-            else:
-                # Ha a konténer nem válaszol, akkor hiba
-                service_states[service][slot] = "failed"
-                deployment_statuses[deployment_id] = {"status": "failed", "message": f"A {service} konténer nem válaszol a health check kérésekre"}
-                logger.error(f"Deployment hiba: {service} v{version} a {slot} slotra - konténer nem válaszol")
+            labels = {
+                "service": service,
+                "slot": slot,
+                "traefik.enable": "true",
+                f"traefik.http.routers.{container_name}.rule": f"PathPrefix(`/api/{service}`)",
+                f"traefik.http.routers.{container_name}.service": container_name,
+                f"traefik.http.services.{container_name}.loadbalancer.server.port": "8000",
+                "com.docker.compose.project": "szakdoga2025",  # Projekt/csoport név
+                "dev.dozzle.group": "szakdoga2025",           # Dozzle csoportosítás
+                "szakdoga2025.group": "true"                  # Egyedi címke 
+            }
+            
+            container = docker_client.containers.run(
+                image=f"{new_image_name}:{version}",
+                name=container_name,
+                labels=labels,
+                detach=True,
+                network="szakdoga2025_traefik-network",
+                restart_policy={"Name": "unless-stopped"},
+                environment={
+                    "SERVICE_NAME": service,
+                    "SLOT": slot,
+                    "VERSION": version,
+                    "PROJECT": "szakdoga2025"  # Projekt név környezeti változóként
+                }
+            )
+            logger.info(f"Konténer elindítva: {container_name} ID: {container.id}")
+        except Exception as e:
+            logger.error(f"Hiba a konténer indításakor: {str(e)}")
+            service_states[service][slot] = "failed"
+            deployment_statuses[deployment_id] = {"status": "failed", "message": f"Hiba a konténer indításakor: {str(e)}"}
+            return
+        
+        # Várjunk egy kicsit, hogy a konténer elinduljon
+        await asyncio.sleep(5)
+        
+        # Ellenőrizzük, hogy a konténer fut-e és válaszol-e
+        health_check_success = check_service_health(service, slot)
+        
+        if health_check_success:
+            service_states[service][slot] = "active"
+            service_states[service]["version"] = version
+            deployment_statuses[deployment_id] = {"status": "success", "message": f"{service} v{version} sikeresen deploy-olva a {slot} slotra"}
+            logger.info(f"Sikeres deployment: {service} v{version} a {slot} slotra")
         else:
             service_states[service][slot] = "failed"
-            deployment_statuses[deployment_id] = {"status": "failed", "message": "Hiba a konténer indításakor"}
-            logger.error(f"Deployment hiba: {service} v{version} a {slot} slotra - konténer indítási hiba")
+            deployment_statuses[deployment_id] = {"status": "failed", "message": f"A {service} konténer nem válaszol a health check kérésekre"}
+            logger.error(f"Deployment hiba: {service} v{version} a {slot} slotra - konténer nem válaszol")
     except Exception as e:
         service_states[service][slot] = "failed"
         deployment_statuses[deployment_id] = {"status": "failed", "message": str(e)}
         logger.error(f"Deployment hiba: {service} v{version} a {slot} slotra - {e}")
+
+
 
 # ------------------- API VÉGPONTOK -------------------
 
@@ -370,16 +425,43 @@ async def get_services_status():
         blue_weight = weights.get(service, {}).get("blue", 0)
         green_weight = weights.get(service, {}).get("green", 0)
         
+        # Konténer információk lekérése a verzió számára
+        try:
+            blue_container = None
+            green_container = None
+            
+            if blue_info.get("exists"):
+                blue_container = docker_client.containers.get(blue_key)
+            if green_info.get("exists"):
+                green_container = docker_client.containers.get(green_key)
+                
+            # Verzió kinyerése a konténer image tag-jéből (GitHub tag)
+            blue_version = "unknown"
+            green_version = "unknown"
+            
+            if blue_container and blue_container.image.tags:
+                # Az image tag formátuma: ghcr.io/owner/repo:tag
+                # Ebből kinyerjük a tag-et (az utolsó részt a : után)
+                blue_version = blue_container.image.tags[0].split(":")[-1]
+            
+            if green_container and green_container.image.tags:
+                green_version = green_container.image.tags[0].split(":")[-1]
+                
+        except Exception as e:
+            logger.error(f"Hiba a konténer információk lekérésekor: {e}")
+            blue_version = state.get("version", "unknown")
+            green_version = state.get("version", "unknown")
+        
         # Szolgáltatások hozzáadása a megfelelő slot-hoz
         slot_a_services.append({
-            "name": f"Szakdoga2025-{service}-blue",
-            "version": state.get("version") or "unknown",
+            "name": blue_key,
+            "version": blue_version,
             "status": "healthy" if blue_info.get("health_check", False) else "warning"
         })
         
         slot_b_services.append({
-            "name": f"Szakdoga2025-{service}-green",
-            "version": state.get("version") or "unknown",
+            "name": green_key,
+            "version": green_version,
             "status": "healthy" if green_info.get("health_check", False) else "warning"
         })
     
@@ -389,7 +471,7 @@ async def get_services_status():
         "name": "Slot A",
         "status": "active" if any(s["status"] == "healthy" for s in slot_a_services) else "inactive",
         "traffic": sum(weights.get(service, {}).get("blue", 0) for service in service_states) // len(service_states) if service_states else 0,
-        "version": next((state.get("version") for state in service_states.values() if state.get("version")), "unknown"),
+        "version": next((s["version"] for s in slot_a_services if s["version"] != "unknown"), "unknown"),
         "services": slot_a_services
     }]
     
@@ -399,11 +481,13 @@ async def get_services_status():
         "name": "Slot B",
         "status": "active" if any(s["status"] == "healthy" for s in slot_b_services) else "inactive",
         "traffic": sum(weights.get(service, {}).get("green", 0) for service in service_states) // len(service_states) if service_states else 0,
-        "version": next((state.get("version") for state in service_states.values() if state.get("version")), "unknown"),
+        "version": next((s["version"] for s in slot_b_services if s["version"] != "unknown"), "unknown"),
         "services": slot_b_services
     }]
     
     return result
+
+
 
 @app.get("/traffic", summary="Forgalom elosztás lekérdezése")
 async def get_traffic_config():
@@ -558,14 +642,18 @@ async def deploy(request: DeploymentRequest, background_tasks: BackgroundTasks):
         if git_watcher:
             tags = git_watcher.get_release_tags()
             if request.version not in tags:
-                raise HTTPException(status_code=404, detail=f"A megadott tag ({request.version}) nem létezik")
+                logger.warning(f"A megadott tag ({request.version}) nem található a Git Watcher-ben, de folytatjuk a deploymentet")
         else:
-            logger.warning("Git Watcher nem elérhető, tag ellenőrzés kihagyva")
+            logger.warning("Git Watcher szolgáltatás nem elérhető, tag ellenőrzés kihagyva")
         
         # Ha a slot nincs megadva, akkor keressünk egy elérhető slotot
         slot = request.slot if request.slot else get_available_slot(request.service)
         if not slot:
-            raise HTTPException(status_code=409, detail=f"Nincs elérhető slot a {request.service} számára")
+            # Ha nincs elérhető slot, használjuk az ellenkező slotot mint az aktív
+            current_status = docker_manager.get_service_status(request.service)
+            active_slot = 'blue' if current_status['blue']['status'] == 'active' else 'green'
+            slot = 'green' if active_slot == 'blue' else 'blue'
+            logger.info(f"Nincs elérhető slot, a {slot} slot lesz újrahasznosítva")
         
         deployment_id = f"{request.service}-{request.version}-{slot}-{int(time.time())}"
         deployment_statuses[deployment_id] = {
@@ -573,10 +661,15 @@ async def deploy(request: DeploymentRequest, background_tasks: BackgroundTasks):
             "message": "Deployment várólistára helyezve"
         }
         
+        # Szolgáltatás nevének átalakítása a megfelelő GitHub Package névre
+        github_package_name = request.service.replace("microservice", "m")
+        
         # GitHub Package Registry-ből való image használata
         repo_parts = GIT_REPO_URL.split('/')
         owner = repo_parts[-2]
-        image_name = f"ghcr.io/{owner}/{request.service}:{request.version}"
+        image_name = f"ghcr.io/{owner}/{github_package_name}:{request.version}"
+        
+        logger.info(f"Deployment indítása: {request.service} v{request.version} a {slot} slotra, image: {image_name}")
         
         background_tasks.add_task(
             deploy_service_with_github_image,
@@ -596,6 +689,7 @@ async def deploy(request: DeploymentRequest, background_tasks: BackgroundTasks):
     except Exception as e:
         logger.error(f"Váratlan hiba: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Belső szerverhiba: {str(e)}")
+
 
 @app.post("/rollback/{service}", summary="Szolgáltatás visszaállítása")
 async def rollback(service: str):
@@ -719,6 +813,7 @@ async def get_deployment_status(deployment_id: str):
     
     return deployment_statuses[deployment_id]
 
+
 @app.get("/deployment/history", summary="Deployment történet lekérdezése")
 async def get_deployment_history():
     """Lekérdezi a deployment történetet"""
@@ -728,9 +823,10 @@ async def get_deployment_history():
             parts = deployment_id.split('-')
             if len(parts) >= 4:
                 service = parts[0]
-                version = parts[1]
-                slot = parts[2]
-                timestamp = int(parts[3])
+                version_end_index = len(parts) - 2
+                version = '-'.join(parts[1:version_end_index])
+                slot = parts[-2]
+                timestamp = int(parts[-1])
                 
                 history.append({
                     "id": deployment_id,
@@ -747,6 +843,26 @@ async def get_deployment_history():
     except Exception as e:
         logger.error(f"Hiba a deployment history lekérdezésekor: {str(e)}")
         return []
+
+# Utána definiáld a paraméteres útvonalat
+@app.get("/deployment/{deployment_id}", summary="Deployment státusz lekérdezése")
+async def get_deployment_status(deployment_id: str):
+    """Lekérdezi egy adott deployment státuszát"""
+    if deployment_id not in deployment_statuses:
+        raise HTTPException(status_code=404, detail=f"A {deployment_id} azonosítójú deployment nem található")
+    
+    return deployment_statuses[deployment_id]
+
+
+# Utána definiáld a paraméteres útvonalat
+@app.get("/deployment/{deployment_id}", summary="Deployment státusz lekérdezése")
+async def get_deployment_status(deployment_id: str):
+    """Lekérdezi egy adott deployment státuszát"""
+    if deployment_id not in deployment_statuses:
+        raise HTTPException(status_code=404, detail=f"A {deployment_id} azonosítójú deployment nem található")
+    
+    return deployment_statuses[deployment_id]
+
 
 if __name__ == "__main__":
     # Ellenőrizzük a Git Watcher állapotát indulás előtt

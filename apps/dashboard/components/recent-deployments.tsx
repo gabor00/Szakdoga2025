@@ -18,6 +18,7 @@ interface HistoryItem {
   service: string;
   version: string;
   status: string;
+  timestamp: number; // Unix timestamp
   slot: string;
 }
 
@@ -44,8 +45,8 @@ export function RecentDeployments() {
   ]);
   
   useEffect(() => {
-    // Deployment history lekérése
-    fetch('http://localhost:8100/deployment/history')
+  // Deployment history lekérése
+  fetch('http://localhost:8100/deployment/history')
     .then(res => res.json())
     .then((data: HistoryItem[]) => {
       console.log('History data:', data);
@@ -54,7 +55,8 @@ export function RecentDeployments() {
         // Adatok átalakítása a komponens által várt formátumra
         const deployments = data.map((d: HistoryItem) => ({
           id: d.id,
-          version: d.version,
+          version: d.version,  // Ez már a GitHub tag
+          timestamp: new Date(d.timestamp * 1000).toISOString(),
           status: d.status,
           slot: d.slot
         }));
@@ -69,7 +71,8 @@ export function RecentDeployments() {
       console.error('Error fetching deployment history:', err);
       setRecentDeployments([]);
     });
-  }, []);
+}, []);
+
 
   return (
     <Card>

@@ -117,52 +117,64 @@ export default function ReleasesPage() {
   };
 
   const handleConfirmDeploy = async () => {
-    if (!selectedRelease) return;
+  if (!selectedRelease) return;
+  
+  setIsLoading(true);
+  
+  // Kiválasztott szolgáltatások lekérése
+  const servicesToDeploy = Object.entries(selectedServices)
+    .filter(([_, selected]) => selected)
+    .map(([service]) => service);
+  
+  if (servicesToDeploy.length === 0) {
+    alert("Legalább egy szolgáltatást ki kell választani!");
+    setIsLoading(false);
+    return;
+  }
+  
+  // Minden kiválasztott szolgáltatásra indítunk egy deployment-et
+  try {
+    const deployPromises = servicesToDeploy.map(service =>
+      fetch('http://localhost:8100/deploy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          service: service, // Itt a service már a megfelelő formátumban van (microservice1, microservice2, stb.)
+          version: selectedRelease,
+          slot: selectedSlot === "slot-a" ? "blue" : "green"
+        }),
+      })
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! Status: ${res.status}`);
+        }
+        return res.json();
+      })
+    );
     
-    setIsLoading(true);
+    const results = await Promise.all(deployPromises);
+    console.log('All deployments started:', results);
     
-    // Kiválasztott szolgáltatások lekérése
-    const servicesToDeploy = Object.entries(selectedServices)
-      .filter(([_, selected]) => selected)
-      .map(([service]) => service);
+    // Sikeres üzenet megjelenítése
+    alert(`Deployment elindítva a következő szolgáltatásokhoz: ${servicesToDeploy.join(', ')}`);
     
-    if (servicesToDeploy.length === 0) {
-      alert("Legalább egy szolgáltatást ki kell választani!");
-      setIsLoading(false);
-      return;
-    }
+    setDeployDialogOpen(false);
     
-    // Minden kiválasztott szolgáltatásra indítunk egy deployment-et
-    try {
-      const deployPromises = servicesToDeploy.map(service =>
-        fetch('http://localhost:8100/deploy', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            service: service, // Itt a service már a megfelelő formátumban van (microservice1, microservice2, stb.)
-            version: selectedRelease,
-            slot: selectedSlot === "slot-a" ? "blue" : "green"
-          }),
-        }).then(res => res.json())
-      );
-      
-      await Promise.all(deployPromises);
-      console.log('All deployments started');
-      setDeployDialogOpen(false);
-      
-      // Frissítsük az oldalon lévő adatokat
-      fetchReleases();
-      
-      // Navigáljunk a deployments oldalra
-      window.location.href = '/';
-    } catch (err) {
-      console.error('Error during deployments:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    // Frissítsük az oldalon lévő adatokat
+    fetchReleases();
+    
+    // Navigáljunk a deployments oldalra
+    window.location.href = '/';
+  } catch (err) {
+    console.error('Error during deployments:', err);
+    alert(`Hiba történt a deployment során: ${err}`);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   return (
     <div className="space-y-6">

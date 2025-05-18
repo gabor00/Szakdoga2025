@@ -70,6 +70,7 @@ export default function DeploymentsPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [rollbackDialogOpen, setRollbackDialogOpen] = useState(false);
   const [selectedDeployment, setSelectedDeployment] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
     // Adatok lekérése a backendről
@@ -202,7 +203,9 @@ export default function DeploymentsPage() {
                         <TableRow key={service.name}>
                           <TableCell>{service.name}</TableCell>
                           <TableCell>
-                            <Badge variant="outline">{service.version || "unknown"}</Badge>
+                            <Badge variant="outline" className="font-mono">
+                              {service.version !== "unknown" ? service.version : "N/A"}
+                            </Badge>
                           </TableCell>
                           <TableCell>
                             <Badge variant={service.status === "healthy" ? "outline" : "destructive"}>
@@ -211,6 +214,7 @@ export default function DeploymentsPage() {
                           </TableCell>
                         </TableRow>
                       ))}
+
                     </TableBody>
                   </Table>
                   <div className="mt-4 flex justify-end">
@@ -233,43 +237,59 @@ export default function DeploymentsPage() {
         <TabsContent value="history">
           <Card>
             <CardContent className="p-6">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Version</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Slot</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {history?.map((deployment) => (
-                    <TableRow key={deployment.id}>
-                      <TableCell>{deployment.version}</TableCell>
-                      <TableCell>{new Date(deployment.timestamp * 1000).toLocaleString()}</TableCell>
-                      <TableCell>Slot {deployment.slot}</TableCell>
-                      <TableCell>
-                        <Badge variant={deployment.status === "success" ? "outline" : "destructive"}>
-                          {deployment.status === "success" ? "Success" : "Failed"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          onClick={() => handleRollback(deployment.id)}
-                          variant="ghost"
-                          size="sm"
-                          disabled={deployment.status !== "success"}
-                          className="flex items-center gap-2"
-                        >
-                          <History className="h-4 w-4" />
-                          Restore
-                        </Button>
-                      </TableCell>
+              {isLoading ? (
+                <div className="text-center p-8">
+                  <p>Loading deployment history...</p>
+                </div>
+              ) : history && history.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Service</TableHead>
+                      <TableHead>Version</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Slot</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {history.map((deployment) => (
+                      <TableRow key={deployment.id}>
+                        <TableCell>{deployment.service}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-mono">
+                            {deployment.version}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{new Date(deployment.timestamp * 1000).toLocaleString()}</TableCell>
+                        <TableCell>Slot {deployment.slot}</TableCell>
+                        <TableCell>
+                          <Badge variant={deployment.status === "success" ? "outline" : "destructive"}>
+                            {deployment.status === "success" ? "Success" : "Failed"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            onClick={() => handleRollback(deployment.id)}
+                            variant="ghost"
+                            size="sm"
+                            disabled={deployment.status !== "success" || isLoading}
+                            className="flex items-center gap-2"
+                          >
+                            <History className="h-4 w-4" />
+                            Restore
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center p-4">
+                  <p className="text-muted-foreground">No deployment history found</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
