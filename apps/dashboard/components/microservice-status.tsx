@@ -74,7 +74,7 @@ export function MicroserviceStatus() {
         name: service.name,
         status: service.slots[0].status,
         version: service.slots[0].version,  // Ez már a GitHub tag
-        slot: service.slots[0].id === "slot-a" ? "A" : "B",
+        slot: service.slots[0].id === "slot-a" ? "Blue" : "Green", // Slot A/B helyett Blue/Green
         traffic: service.slots[0].traffic,
         lastDeployed: new Date().toISOString() // Ez az adat nem jön a backendről, így most használunk egy placeholder-t
       }));
@@ -100,7 +100,7 @@ export function MicroserviceStatus() {
           name: service.name,
           status: service.slots[0].status,
           version: service.slots[0].version,
-          slot: service.slots[0].id === "slot-a" ? "A" : "B",
+          slot: service.slots[0].id === "slot-a" ? "Blue" : "Green",
           traffic: service.slots[0].traffic,
           lastDeployed: new Date().toISOString()
         }));

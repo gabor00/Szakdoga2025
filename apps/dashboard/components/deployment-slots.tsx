@@ -44,30 +44,6 @@ interface ServicesResponse {
 
 export function DeploymentSlots({ detailed = false }: DeploymentSlotsProps) {
   const [slots, setSlots] = useState<Slot[]>([
-    {
-      id: "slot-a",
-      name: "Slot A",
-      status: "active",
-      traffic: 100,
-      version: "release-1.2.3",
-      services: [
-        { name: "microservice1", version: "1.2.3", status: "healthy" },
-        { name: "microservice2", version: "2.0.1", status: "healthy" },
-        { name: "microservice3", version: "0.9.5", status: "warning" },
-      ],
-    },
-    {
-      id: "slot-b",
-      name: "Slot B",
-      status: "inactive",
-      traffic: 0,
-      version: "release-1.1.0",
-      services: [
-        { name: "Smicroservice1", version: "1.1.2", status: "healthy" },
-        { name: "microservice3", version: "1.9.0", status: "healthy" },
-        { name: "microservice3", version: "0.8.5", status: "healthy" },
-      ],
-    }
   ]);
   
   const [trafficValues, setTrafficValues] = useState<{[key: string]: number}>({
@@ -83,7 +59,7 @@ export function DeploymentSlots({ detailed = false }: DeploymentSlotsProps) {
         // Adatok átalakítása a komponens által várt formátumra
         const slotA = data["slot-a"].map((s: ServiceData) => ({
           id: "slot-a",
-          name: "Slot A",
+          name: "Slot Blue",
           status: s.status === "active" ? "active" : "inactive",
           traffic: s.traffic,
           version: s.version,
@@ -92,7 +68,7 @@ export function DeploymentSlots({ detailed = false }: DeploymentSlotsProps) {
         
         const slotB = data["slot-b"].map((s: ServiceData) => ({
           id: "slot-b",
-          name: "Slot B",
+          name: "Slot Green",
           status: s.status === "active" ? "active" : "inactive",
           traffic: s.traffic,
           version: s.version,
@@ -146,10 +122,7 @@ export function DeploymentSlots({ detailed = false }: DeploymentSlotsProps) {
       .catch(err => console.error('Error applying traffic configuration:', err));
   };
 
-  const handleSwapSlots = () => {
-    // Implement your slot swap logic here
-    console.log("Swapping deployment slots");
-  };
+  
 
   if (!detailed) {
     return (
@@ -169,7 +142,6 @@ export function DeploymentSlots({ detailed = false }: DeploymentSlotsProps) {
               </Badge>
             </div>
           ))}
-          <Button onClick={handleSwapSlots} className="w-full">Swap Slots</Button>
         </CardContent>
       </Card>
     );
@@ -179,7 +151,6 @@ export function DeploymentSlots({ detailed = false }: DeploymentSlotsProps) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Deployment Slots</h2>
-        <Button onClick={handleSwapSlots} variant="outline">Swap Slots</Button>
       </div>
       {slots.map((slot) => (
         <Card key={slot.id}>

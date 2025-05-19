@@ -13,6 +13,7 @@
           "tags": ["dashboard"]
         }
       },
+
     "build.local": {
       "executor": "@nx/next:build",
       "outputs": ["{options.outputPath}"],

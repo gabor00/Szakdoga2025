@@ -152,50 +152,7 @@ def start_container(service: str, version: str, slot: str):
         logger.error(f"Hiba a konténer indításakor: {e}")
         raise HTTPException(status_code=500, detail=f"Hiba a konténer indításakor: {str(e)}")
 
-async def deploy_service(service: str, version: str, slot: str, deployment_id: str):
-    try:
-        service_states[service][slot] = "deploying"
-        deployment_statuses[deployment_id] = {"status": "in_progress", "message": "Deployment elindult"}
-        
-        logger.info(f"Deployment indítása: {service} v{version} a {slot} slotra")
-        
-        # Konténer indítása
-        start_container(service, version, slot)
-        
-        # Várjunk egy kicsit, hogy a konténer elinduljon
-        await asyncio.sleep(5)
-        
-        # Ellenőrizzük, hogy a konténer fut-e és válaszol-e
-        container_name = f"szakdoga2025-{service}-{slot}"
-        health_check_success = False
-        
-        try:
-            # Explicit port megadása (8000) a szolgáltatásnévvel
-            response = requests.get(f"http://{container_name}:8000/health", timeout=2)
-            health_check_success = response.status_code == 200
-        except RequestException as e:
-            logger.warning(f"Health check hiba: {e}")
-            health_check_success = False
-        
-        if health_check_success:
-            # Sikeres deploy esetén
-            service_states[service][slot] = "active"
-            if not service_states[service]["active_slot"]:
-                service_states[service]["active_slot"] = slot
-            service_states[service]["version"] = version
-            deployment_statuses[deployment_id] = {"status": "success", "message": f"{service} v{version} sikeresen deploy-olva a {slot} slotra"}
-            logger.info(f"Sikeres deployment: {service} v{version} a {slot} slotra")
-        else:
-            # Ha a konténer nem válaszol, akkor hiba
-            service_states[service][slot] = "failed"
-            deployment_statuses[deployment_id] = {"status": "failed", "message": f"A {service} konténer nem válaszol a health check kérésekre"}
-            logger.error(f"Deployment hiba: {service} v{version} a {slot} slotra - konténer nem válaszol")
-    except Exception as e:
-        service_states[service][slot] = "failed"
-        deployment_statuses[deployment_id] = {"status": "failed", "message": str(e)}
-        logger.error(f"Deployment hiba: {service} v{version} a {slot} slotra - {e}")
-
-async def deploy_service_with_github_image(service: str, image_name: str, version: str, slot: str, deployment_id: str):
+async def deploy_service_with_github_image(service: str, version: str, slot: str, deployment_id: str):
     """GitHub registry-ből származó image deploy-olása átnevezéssel"""
     try:
         service_states[service][slot] = "deploying"
@@ -204,7 +161,6 @@ async def deploy_service_with_github_image(service: str, image_name: str, versio
         logger.info(f"Deployment indítása: {service} v{version} a {slot} slotra")
         
         # Az image_name helyett a github package név helyett a service és slot alapján új image nevet állítunk be
-        # Például: szakdoga2025-microservice1-blue
         new_image_name = f"szakdoga2025-{service}-{slot}"
         
         # Docker image pull a GitHub registry-ből a package névvel
@@ -308,54 +264,6 @@ async def root():
         "git_watcher": "connected" if git_watcher else "disconnected",
         "repo_path": GIT_REPO_URL
     }
-
-@app.get("/releases", summary="Elérhető release verziók lekérdezése")
-async def get_releases():
-    """Visszaadja az összes elérhető release-t a GitHub repository-ból"""
-    try:
-        if not git_watcher:
-            logger.warning("Git Watcher szolgáltatás nem elérhető, üres lista visszaadása")
-            return []
-        
-        try:
-            tags = git_watcher.get_release_tags()
-            releases = []
-            
-            # Ha nincsenek tagek, adjunk vissza egy üres listát explicit módon
-            if not tags:
-                return []
-                
-            for tag in tags:
-                release_details = git_watcher.get_release_details(tag)
-                
-                # Frontend-kompatibilis formátum
-                changes = []
-                for service, changed in release_details.get("changes", {}).items():
-                    changes.append({
-                        "service": service,
-                        "type": "changed" if changed else "unchanged"
-                    })
-                
-                # Ellenőrizzük, hogy ez a verzió már telepítve van-e valahol
-                is_deployed = any(state.get("version") == tag for state in service_states.values())
-                
-                releases.append({
-                    "tag": tag,
-                    "commit": release_details.get("hash", "")[:8],
-                    "status": "deployed" if is_deployed else "available",
-                    "date": release_details.get("date", ""),
-                    "author": release_details.get("author", ""),
-                    "changes": changes
-                })
-            
-            return releases
-        except Exception as e:
-            logger.error(f"Hiba a release-ek lekérdezésekor: {str(e)}")
-            # Hiba esetén is adjunk vissza egy üres listát a frontend számára
-            return []
-    except Exception as e:
-        logger.error(f"Hiba a release-ek lekérdezésekor: {str(e)}")
-        return []
 
 @app.get("/releases/latest", summary="Legfrissebb release lekérdezése")
 async def get_latest_release():
@@ -674,7 +582,6 @@ async def deploy(request: DeploymentRequest, background_tasks: BackgroundTasks):
         background_tasks.add_task(
             deploy_service_with_github_image,
             request.service,
-            image_name,
             request.version,
             slot,
             deployment_id
@@ -690,39 +597,6 @@ async def deploy(request: DeploymentRequest, background_tasks: BackgroundTasks):
         logger.error(f"Váratlan hiba: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Belső szerverhiba: {str(e)}")
 
-
-@app.post("/rollback/{service}", summary="Szolgáltatás visszaállítása")
-async def rollback(service: str):
-    """Visszaállítja egy szolgáltatás előző verziójára"""
-    try:
-        if service not in service_states:
-            raise HTTPException(status_code=404, detail=f"A {service} szolgáltatás nem található")
-        
-        if not docker_manager:
-            raise HTTPException(status_code=503, detail="Docker Manager nem elérhető")
-        
-        success = docker_manager.rollback_service(service)
-        
-        if not success:
-            raise HTTPException(status_code=500, detail="Rollback sikertelen")
-        
-        # Frissítsük a szolgáltatás verzióját
-        previous_version = service_states[service]["version"]
-        # Itt kellene lekérni az új verziót a Docker konténerből
-        new_version = "previous-version"  # Placeholder
-        
-        return {
-            "message": f"A {service} szolgáltatás sikeresen visszaállítva",
-            "details": {
-                "previous_version": previous_version,
-                "new_version": new_version
-            }
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Rollback hiba: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Rollback sikertelen: {str(e)}")
 
 @app.post("/slot-config", summary="Forgalom elosztás beállítása")
 async def configure_slots(request: SlotConfigurationRequest):
@@ -805,61 +679,6 @@ async def restart_service(service: str, slot: str):
         "message": f"A {service} szolgáltatás {slot} slotja sikeresen újraindítva"
     }
 
-@app.get("/deployment/{deployment_id}", summary="Deployment státusz lekérdezése")
-async def get_deployment_status(deployment_id: str):
-    """Lekérdezi egy adott deployment státuszát"""
-    if deployment_id not in deployment_statuses:
-        raise HTTPException(status_code=404, detail=f"A {deployment_id} azonosítójú deployment nem található")
-    
-    return deployment_statuses[deployment_id]
-
-
-@app.get("/deployment/history", summary="Deployment történet lekérdezése")
-async def get_deployment_history():
-    """Lekérdezi a deployment történetet"""
-    try:
-        history = []
-        for deployment_id, status in deployment_statuses.items():
-            parts = deployment_id.split('-')
-            if len(parts) >= 4:
-                service = parts[0]
-                version_end_index = len(parts) - 2
-                version = '-'.join(parts[1:version_end_index])
-                slot = parts[-2]
-                timestamp = int(parts[-1])
-                
-                history.append({
-                    "id": deployment_id,
-                    "service": service,
-                    "version": version,
-                    "slot": "A" if slot == "blue" else "B",
-                    "timestamp": timestamp,
-                    "status": status["status"]
-                })
-        
-        # Rendezzük időrend szerint, a legújabbak elől
-        history.sort(key=lambda x: x["timestamp"], reverse=True)
-        return history
-    except Exception as e:
-        logger.error(f"Hiba a deployment history lekérdezésekor: {str(e)}")
-        return []
-
-# Utána definiáld a paraméteres útvonalat
-@app.get("/deployment/{deployment_id}", summary="Deployment státusz lekérdezése")
-async def get_deployment_status(deployment_id: str):
-    """Lekérdezi egy adott deployment státuszát"""
-    if deployment_id not in deployment_statuses:
-        raise HTTPException(status_code=404, detail=f"A {deployment_id} azonosítójú deployment nem található")
-    
-    return deployment_statuses[deployment_id]
-
-
-# Utána definiáld a paraméteres útvonalat
-@app.get("/deployment/{deployment_id}", summary="Deployment státusz lekérdezése")
-async def get_deployment_status(deployment_id: str):
-    """Lekérdezi egy adott deployment státuszát"""
-    if deployment_id not in deployment_statuses:
-        raise HTTPException(status_code=404, detail=f"A {deployment_id} azonosítójú deployment nem található")
     
     return deployment_statuses[deployment_id]
 

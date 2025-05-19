@@ -157,7 +157,7 @@ export default function TrafficPage() {
                 <TableBody>
                   {service.slots.map((slot) => (
                     <TableRow key={slot.id}>
-                      <TableCell>Slot {slot.id === "slot-a" ? "A" : "B"}</TableCell>
+                      <TableCell>Slot {slot.id === "slot-a" ? "Blue" : "Green"}</TableCell>
                       <TableCell>{slot.version}</TableCell>
                       <TableCell>
                         <Badge variant={slot.status === "healthy" ? "outline" : "destructive"}>
