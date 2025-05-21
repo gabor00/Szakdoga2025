@@ -1,5 +1,6 @@
 'use server'
 
+import { string } from 'zod';
 import { type GitHubTag, type Release } from './types'
 
 export async function fetchReleases(): Promise<Release[]> {
@@ -41,16 +42,15 @@ export async function fetchData(packageName: string) {
 
     try {
         const response = await fetch(
-            `https://api.github.com/orgs/gabor00/packages/container/${packageName}/versions`,
+            `https://api.github.com/users/gabor00/packages/container/${packageName}/versions`,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Accept': 'application/vnd.github.v3+json',
                     'Content-Type': 'application/json',
                 },
-                cache: 'force-cache', // Force cache for 10 minutes
                 next: { 
-                    revalidate: 600 // Cache for 10 minutes
+                    revalidate: 0
                 }
             }
         );

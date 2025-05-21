@@ -91,6 +91,32 @@ export default function DeploymentsPage() {
       <Tabs defaultValue="current">
         <TabsList>
           <TabsTrigger value="current">Current Deployments</TabsTrigger>
+          <div className="flex space-x-3">
+                     <a 
+                       href="http://microservice1.com" 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       className="px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                     >
+                       Microservice1
+                     </a>
+                     <a 
+                       href="http://microservice2.com" 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       className="px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                     >
+                       Microservice2
+                     </a>
+                     <a 
+                       href="http://microservice3.com" 
+                       target="_blank" 
+                       rel="noopener noreferrer"
+                       className="px-3 py-2 text-sm rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+                     >
+                       Microservice3
+                     </a>
+                   </div>
         </TabsList>
         <TabsContent value="current" className="space-y-4">
           {["slot-a", "slot-b"].map((slotId) => {
@@ -132,7 +158,7 @@ export default function DeploymentsPage() {
                     <TableBody>
                       {slot.services?.map((service) => (
                         <TableRow key={service.name}>
-                          <TableCell>{service.name}</TableCell>
+                          <TableCell>{service.name} </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="font-mono">
                               {service.version !== "unknown" ? service.version : "N/A"}
