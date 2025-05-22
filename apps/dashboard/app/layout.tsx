@@ -8,8 +8,7 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata = {
   title: "Deployment Management Tool",
-  description: "Manage deployments for your microservices",
-    generator: 'v0.dev'
+  description: "Manage deployments for your microservices"
 }
 
 export default function RootLayout({

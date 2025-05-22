@@ -1,4 +1,4 @@
-// eslint.config.js
+
 import { FlatCompat } from '@eslint/eslintrc';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -12,12 +12,10 @@ const compat = new FlatCompat({
 });
 
 export default [
-  // Global ignores
   {
     ignores: ['.next/**/*', 'dist/**/*', 'node_modules/**/*']
   },
   
-  // Base configuration for JavaScript files
   {
     files: ['.next/**/*.js', '.next/**/*.jsx'],
     languageOptions: {
@@ -38,7 +36,6 @@ export default [
     }
   },
   
-  // TypeScript files configuration
   {
     files: ['.next/**/*.ts', '.next/**/*.tsx'],
     languageOptions: {
@@ -50,7 +47,6 @@ export default [
       }
     },
     rules: {
-      // TypeScript already handles undefined variables better than ESLint
       'no-undef': 'off',
       'no-unused-vars': ['error', { 
         'argsIgnorePattern': '^_',
@@ -61,7 +57,6 @@ export default [
     }
   },
   
-  // Next.js specific configuration
   ...compat.config({
     extends: ['next/core-web-vitals'],
     settings: {

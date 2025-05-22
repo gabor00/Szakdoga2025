@@ -1,6 +1,5 @@
 "use client"
 
-//apps/dashboard/app/traffic/page.tsx
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -92,7 +91,6 @@ export default function TrafficPage() {
   };
 
   const handleConfirmApply = () => {
-    // Minden szolgáltatáshoz külön kérés
     const promises = services.map(service => {
       return fetch('http://localhost:8100/slot-config', {
         method: 'POST',
@@ -214,8 +212,7 @@ export default function TrafficPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Apply Traffic Configuration</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to apply these traffic changes? This will affect the live traffic distribution
-              between deployment slots.
+              Biztos vagy benne hogy változtatni szeretnéd a forgalmat? Ez befolyásolja az éles környezetet.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

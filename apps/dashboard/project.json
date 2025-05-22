@@ -5,45 +5,13 @@
   "projectType": "application",
   "targets": {
     "build": {
-        "executor": "@nx-tools/nx-container:build",
-        "options": {
-          "dockerFile": "Dockerfile",
-          "context": "./apps/dashboard",
-          "push": true,
-          "tags": ["dashboard"]
-        }
-      },
-
-    "build.local": {
-      "executor": "@nx/next:build",
-      "outputs": ["{options.outputPath}"],
-      "defaultConfiguration": "production",
+      "executor": "@nx-tools/nx-container:build",
       "options": {
-        "outputPath": "dist/apps/dashboard"
-      },
-      "configurations": {
-        "development": {
-          "outputPath": "apps/dashboard"
-        },
-        "production": {}
-      }
-    },
-    "build-locals2": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "docker build -t dashboard:latest .",
-        "cwd": "apps/dashboard"
-      },
-      "configurations": {
-        "development": {
-          "optimization": false,
-          "sourceMap": true
-        },
-        "production": {
-          "optimization": true,
-          "sourceMap": false
-        }
-      }
+        "dockerFile": "Dockerfile",
+        "context": "./apps/dashboard",
+        "push": true,
+        "tags": ["dashboard"]
+      } 
     }
   }
 }

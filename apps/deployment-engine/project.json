@@ -12,24 +12,8 @@
           "push": true,
           "tags": ["deployment-engine"]
         }
-      },
-    "build-local": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "docker build -t deployment-engine:latest .",
-        "cwd": "apps/deployment-engine"
-      },
-      "configurations": {
-        "development": {
-          "optimization": false,
-          "sourceMap": true
-        },
-        "production": {
-          "optimization": true,
-          "sourceMap": false
-        }
       }
-    }
+      
   }
 }
   

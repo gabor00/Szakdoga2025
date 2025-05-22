@@ -1,4 +1,4 @@
-# docker/traefik/traefik.yml
+
 entryPoints:
   web:
     address: ":80"
@@ -8,7 +8,7 @@ entryPoints:
 
 # API és Dashboard konfigurálása
 api:
-  insecure: true  # Fejlesztési környezetben, production-ben false legyen!
+  insecure: true  
   dashboard: true
 
 # Szolgáltatások automatikus felderítése
@@ -25,11 +25,3 @@ providers:
 log:
   level: "INFO"
 
-# Tanúsítvány kezelés (fejlesztési környezetben nem szükséges)
-# certificatesResolvers:
-#   letsencrypt:
-#     acme:
-#       email: your-email@example.com
-#       storage: /etc/traefik/acme.json
-#       httpChallenge:
-#         entryPoint: web

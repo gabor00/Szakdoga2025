@@ -139,7 +139,7 @@ export function DeployDialog({ open, onOpenChange, selectedRelease, onSuccess }:
         <DialogHeader>
           <DialogTitle>Deploy Release</DialogTitle>
           <DialogDescription>
-            You are about to deploy {selectedRelease} to a deployment slot. Select which microservices you want to deploy.
+            A {selectedRelease} fogod deployolni.
           </DialogDescription>
         </DialogHeader>
         
@@ -154,7 +154,7 @@ export function DeployDialog({ open, onOpenChange, selectedRelease, onSuccess }:
           <div className="grid grid-cols-4 items-center gap-4">
             <div className="col-span-4">
               <label htmlFor="slot" className="text-sm font-medium mb-2 block">
-                Select Deployment Slot
+                Válaszd ki melyik deployment slot-ra szeretnéd deploy-olni a csomagot
               </label>
               <Select
                 value={selectedSlot}
@@ -174,18 +174,18 @@ export function DeployDialog({ open, onOpenChange, selectedRelease, onSuccess }:
           
           <div className="col-span-4">
             <label className="text-sm font-medium mb-2 block">
-              Select Services to Deploy
+              Válaszd ki melyik microservice-re szeretnéd deploy-olni a csomagot
             </label>
             
             {availableServices.length === 0 && !isLoadingData && (
               <div className="py-2 text-sm text-red-500">
-                No services have this version available for deployment.
+                Egyik service-re se elérhető ez a csomag.
               </div>
             )}
             
             {availableServices.length > 0 && !isLoadingData && (
               <div className="py-2 text-sm text-green-500">
-                {availableServices.length} service(s) have this version available for deployment.
+                {availableServices.length} service(-ek)-re elérhető ez a csomag.
               </div>
             )}
             

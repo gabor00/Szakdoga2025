@@ -2,26 +2,22 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import uvicorn
-from api.endpoints import health
 
 app = FastAPI(
     title="Microservice 3",
     description="Harmadik mikroszolgáltatás a monorepo rendszerben"
 )
 
-# CORS beállítások
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Produkciós környezetben specifikusabb beállítás javasolt
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# API routing
-app.include_router(health.router, prefix="/api", tags=["health"])
 
-# Egyéb route-ok és beállítások
 @app.get("/")
 async def root():
     """Alap végpont, amely információt szolgáltat a mikroszolgáltatásról."""
@@ -32,7 +28,6 @@ async def root():
         "dep-slot": os.getenv("DEPLOYMENT_SLOT")
     }
 
-# FastAPI példa
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}

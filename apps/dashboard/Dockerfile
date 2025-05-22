@@ -1,11 +1,9 @@
-# apps/dashboard/Dockerfile
+
 FROM node:20-alpine AS base
 
-# 1. Install dependencies only when needed
 FROM base AS deps
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
@@ -14,20 +12,15 @@ RUN \
   else echo "Lockfile not found." && exit 1; \
   fi
 
-# 2. Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps ./app/node_modules ./node_modules
 COPY . .
 
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry during the build.
 ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN npm run build
 
-# 3. Production image, copy all the files and run next
 FROM base AS runner
 RUN apk add curl
 WORKDIR /app
@@ -40,7 +33,6 @@ RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder ./app/public ./public
 
-# Copy the standalone output
 COPY --from=builder --chown=nextjs:nodejs ./app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs ./app/.next/static ./.next/static
 
@@ -49,7 +41,5 @@ USER nextjs
 EXPOSE 3000
 
 ENV PORT 3000
-# Környezeti változók, ha szükséges
-# ENV DEPLOYMENT_ENGINE_URL=http://deployment-engine:8000
 
 CMD ["node", "server.js"]

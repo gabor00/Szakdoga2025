@@ -147,30 +147,6 @@ class DockerManager:
             logger.error(f"Error deploying {service_name} to {slot} slot: {str(e)}")
             return False
 
-    def rollback_service(self, service_name: str) -> bool:
-        """Visszaállítási logika implementációja"""
-        try:
-            current_status = self.get_service_status(service_name)
-            active_slot = 'green' if current_status['blue']['status'] == 'active' else 'blue'
-            
-            # 1. Megállítjuk az aktuális konténert
-            self._stop_container(service_name, active_slot)
-            
-            # 2. Előző image betöltése
-            images = self.client.images.list(name=f"{service_name}:*")
-            if len(images) < 2:
-                raise ValueError("Nincs elérhető előző verzió")
-            previous_image = sorted(images, key=lambda i: i.tags[0])[-2].tags[0]
-            
-            # 3. Újraindítás előző verzióval
-            return self.deploy_to_slot(
-                service_name=service_name,
-                image_name=previous_image,
-                slot=active_slot
-            )
-        except Exception as e:
-            logger.error(f"Rollback hiba: {str(e)}")
-            return False
 
     def update_traefik_config(self, service_name: str, blue_weight: int, green_weight: int) -> bool:
         """Update Traefik configuration to balance traffic between slots."""

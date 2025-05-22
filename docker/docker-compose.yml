@@ -192,7 +192,7 @@ services:
       - "traefik.http.routers.dashboard.rule=PathPrefix(`/`)"
       - "traefik.http.routers.dashboard.entrypoints=web"
       - "traefik.http.services.dashboard.loadbalancer.server.port=3000"
-      - "traefik.http.routers.dashboard.priority=1" # Lower priority for catch-all route
+      - "traefik.http.routers.dashboard.priority=1" 
 
 
 networks:
