@@ -29,6 +29,7 @@ services:
 
   # Blue Slot Services
   microservice1-blue:
+    image: szakdoga2025-microservice1-blue:v0.1
     build:
       context: ../apps/m1
       dockerfile: Dockerfile
@@ -47,6 +48,7 @@ services:
       - "traefik.http.services.microservice1-blue.loadbalancer.server.port=8000"
 
   microservice2-blue:
+    image: szakdoga2025-microservice2-blue:v0.1
     build:
       context: ../apps/m2
       dockerfile: Dockerfile
@@ -65,6 +67,7 @@ services:
       - "traefik.http.services.microservice2-blue.loadbalancer.server.port=8000"
 
   microservice3-blue:
+    image: szakdoga2025-microservice3-blue:v0.1
     build:
       context: ../apps/m3
       dockerfile: Dockerfile
@@ -84,6 +87,7 @@ services:
 
   # Green Slot Services
   microservice1-green:
+    image: szakdoga2025-microservice1-green:v0.1
     build:
       context: ../apps/m1
       dockerfile: Dockerfile
@@ -102,6 +106,7 @@ services:
       - "traefik.http.services.microservice1-green.loadbalancer.server.port=8000"
 
   microservice2-green:
+    image: szakdoga2025-microservice2-green:v0.1
     build:
       context: ../apps/m2
       dockerfile: Dockerfile
@@ -120,6 +125,7 @@ services:
       - "traefik.http.services.microservice2-green.loadbalancer.server.port=8000"
 
   microservice3-green:
+    image: szakdoga2025-microservice3-green:v0.1
     build:
       context: ../apps/m3
       dockerfile: Dockerfile
@@ -166,6 +172,14 @@ services:
       dockerfile: Dockerfile
     container_name: szakdoga2025-dashboard
     restart: unless-stopped
+    depends_on:
+      - deployment-engine
+      - microservice1-blue
+      - microservice2-blue
+      - microservice3-blue
+      - microservice1-green
+      - microservice2-green
+      - microservice3-green
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost/api/deployment
     networks:

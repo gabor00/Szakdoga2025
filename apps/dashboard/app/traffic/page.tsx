@@ -53,8 +53,8 @@ export default function TrafficPage() {
           (acc: Record<string, Record<string, number>>, service: Service) => {
             if (service.slots && service.slots.length >= 2) {
               acc[service.id] = {
-                "slot-a": service.slots[0].traffic,
-                "slot-b": service.slots[1].traffic,
+                "blue": service.slots[0].traffic,
+                "green": service.slots[1].traffic,
               };
             }
             return acc;
@@ -77,7 +77,7 @@ export default function TrafficPage() {
 
   const handleTrafficChange = (serviceId: string, slotId: string, value: number[]) => {
     const newValue = value[0];
-    const otherSlotId = slotId === "slot-a" ? "slot-b" : "slot-a";
+    const otherSlotId = slotId === "blue" ? "green" : "blue";
     setTrafficValues({
       ...trafficValues,
       [serviceId]: {
@@ -101,8 +101,8 @@ export default function TrafficPage() {
         },
         body: JSON.stringify({
           service: service.name,
-          blue_percentage: trafficValues[service.id]["slot-a"],
-          green_percentage: trafficValues[service.id]["slot-b"]
+          blue_percentage: trafficValues[service.id]["blue"],
+          green_percentage: trafficValues[service.id]["green"],
         }),
       });
     });
@@ -118,8 +118,8 @@ export default function TrafficPage() {
   const hasChanges = () => {
     return services.some(
       (service) =>
-        service.slots[0].traffic !== trafficValues[service.id]["slot-a"] ||
-        service.slots[1].traffic !== trafficValues[service.id]["slot-b"]
+        service.slots[0].traffic !== trafficValues[service.id]["blue"] ||
+        service.slots[1].traffic !== trafficValues[service.id]["green"]
     );
   };
 
@@ -157,7 +157,7 @@ export default function TrafficPage() {
                 <TableBody>
                   {service.slots.map((slot) => (
                     <TableRow key={slot.id}>
-                      <TableCell>Slot {slot.id === "slot-a" ? "Blue" : "Green"}</TableCell>
+                      <TableCell>Slot {slot.id === "blue" ? "Blue" : "Green"}</TableCell>
                       <TableCell>{slot.version}</TableCell>
                       <TableCell>
                         <Badge variant={slot.status === "healthy" ? "outline" : "destructive"}>
@@ -180,7 +180,7 @@ export default function TrafficPage() {
               </Table>
               <div className="mt-4 flex justify-between items-center">
                 <p className="text-sm text-muted-foreground">
-                  {trafficValues[service.id]["slot-a"] === 0 || trafficValues[service.id]["slot-b"] === 0
+                  {trafficValues[service.id]["blue"] === 0 || trafficValues[service.id]["green"] === 0
                     ? "Single slot active"
                     : "Traffic split between slots"}
                 </p>
@@ -188,13 +188,13 @@ export default function TrafficPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    const currentA = trafficValues[service.id]["slot-a"];
-                    const currentB = trafficValues[service.id]["slot-b"];
+                    const currentBlue = trafficValues[service.id]["blue"];
+                    const currentGreen = trafficValues[service.id]["green"];
                     setTrafficValues({
                       ...trafficValues,
                       [service.id]: {
-                        "slot-a": currentB,
-                        "slot-b": currentA,
+                        "blue": currentGreen,
+                        "green": currentBlue,
                       },
                     });
                   }}

@@ -28,8 +28,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Deployment Engine",
-    description="Mikroszolgáltatás deployment kezelő rendszer",
-    version="0.1.0"
+    description="Mikroszolgáltatás deployment kezelő rendszer"
 )
 
 # CORS beállítások
@@ -41,12 +40,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Szolgáltatások állapota
-service_states = {
-    "microservice1": {"blue": "idle", "green": "idle", "version": None},
-    "microservice2": {"blue": "idle", "green": "idle", "version": None},
-    "microservice3": {"blue": "idle", "green": "idle", "version": None}
-}
+
 
 # Deployment státuszok
 deployment_statuses = {}
@@ -85,6 +79,13 @@ except Exception as e:
     git_watcher = None
 
 # ------------------- PYDANTIC MODELLEK -------------------
+# Szolgáltatások állapota
+class ServiceState:
+    def __init__(self, status: str, version: Optional[str] = None):
+        self.status = status
+        self.version = version
+    status : str
+    version : Optional[str]
 
 class DeploymentRequest(BaseModel):
     service: str
@@ -97,21 +98,26 @@ class SlotConfigurationRequest(BaseModel):
     blue_percentage: int
     green_percentage: int
 
-class ServiceStatusResponse(BaseModel):
-    service: str
-    blue_slot: str
-    green_slot: str
-    active_slot: Optional[str]
-    version: Optional[str]
-
 # ------------------- HELPER FÜGGVÉNYEK -------------------
+def get_image_version(service: str, slot: str) -> Optional[str]:
+    """Visszaadja a konténer image verzióját"""
+    container_name = f"szakdoga2025-{service}-{slot}"
+    try:
+        container = docker_client.containers.get(container_name)
+        if container and container.image.tags:
+            return container.image.tags[0].split(":")[-1]
+    except docker.errors.NotFound:
+        logger.warning(f"A {container_name} konténer nem található")
+    except Exception as e:
+        logger.error(f"Hiba a verzió lekérdezésekor: {e}")
+    return None
 
 def get_available_slot(service: str) -> Optional[str]:
     """Visszaadja az elérhető slotot egy szolgáltatáshoz"""
     slots = service_states[service]
-    if slots["blue"] == "idle":
+    if slots.blue == "idle":
         return "blue"
-    elif slots["green"] == "idle":
+    elif slots.green == "idle":
         return "green"
     return None
 
@@ -155,7 +161,7 @@ def start_container(service: str, version: str, slot: str):
 async def deploy_service_with_github_image(service: str, version: str, slot: str, deployment_id: str):
     """GitHub registry-ből származó image deploy-olása átnevezéssel"""
     try:
-        service_states[service][slot] = "deploying"
+        service_states[service][slot].status = "deploying"
         deployment_statuses[deployment_id] = {"status": "in_progress", "message": "Deployment elindult"}
         
         logger.info(f"Deployment indítása: {service} v{version} a {slot} slotra")
@@ -175,7 +181,7 @@ async def deploy_service_with_github_image(service: str, version: str, slot: str
             logger.info(f"Image sikeresen letöltve: {package_image_name}")
         except Exception as e:
             logger.error(f"Hiba az image letöltésekor: {str(e)}")
-            service_states[service][slot] = "failed"
+            service_states[service][slot].status = "failed"
             deployment_statuses[deployment_id] = {"status": "failed", "message": f"Hiba az image letöltésekor: {str(e)}"}
             return
         
@@ -186,7 +192,7 @@ async def deploy_service_with_github_image(service: str, version: str, slot: str
             logger.info(f"Image átnevezve: {new_image_name}:{version}")
         except Exception as e:
             logger.error(f"Hiba az image átnevezésekor: {str(e)}")
-            service_states[service][slot] = "failed"
+            service_states[service][slot].status = "failed"
             deployment_statuses[deployment_id] = {"status": "failed", "message": f"Hiba az image átnevezésekor: {str(e)}"}
             return
         
@@ -226,7 +232,7 @@ async def deploy_service_with_github_image(service: str, version: str, slot: str
             logger.info(f"Konténer elindítva: {container_name} ID: {container.id}")
         except Exception as e:
             logger.error(f"Hiba a konténer indításakor: {str(e)}")
-            service_states[service][slot] = "failed"
+            service_states[service][slot].status = "failed"
             deployment_statuses[deployment_id] = {"status": "failed", "message": f"Hiba a konténer indításakor: {str(e)}"}
             return
         
@@ -237,20 +243,26 @@ async def deploy_service_with_github_image(service: str, version: str, slot: str
         health_check_success = check_service_health(service, slot)
         
         if health_check_success:
-            service_states[service][slot] = "active"
-            service_states[service]["version"] = version
+            service_states[service][slot].status = "active"
+            service_states[service][slot].version = version
             deployment_statuses[deployment_id] = {"status": "success", "message": f"{service} v{version} sikeresen deploy-olva a {slot} slotra"}
             logger.info(f"Sikeres deployment: {service} v{version} a {slot} slotra")
         else:
-            service_states[service][slot] = "failed"
+            service_states[service][slot].status = "failed"
             deployment_statuses[deployment_id] = {"status": "failed", "message": f"A {service} konténer nem válaszol a health check kérésekre"}
             logger.error(f"Deployment hiba: {service} v{version} a {slot} slotra - konténer nem válaszol")
     except Exception as e:
-        service_states[service][slot] = "failed"
+        service_states[service][slot].status = "failed"
         deployment_statuses[deployment_id] = {"status": "failed", "message": str(e)}
         logger.error(f"Deployment hiba: {service} v{version} a {slot} slotra - {e}")
 
 
+service_states = {
+
+    "microservice1": {"blue" : ServiceState(status="idle", version=get_image_version("microservice1", "blue")), "green" : ServiceState(status="idle", version=get_image_version("microservice1", "green"))},
+    "microservice2": {"blue" : ServiceState(status="idle", version=get_image_version("microservice2", "blue")), "green" : ServiceState(status="idle", version=get_image_version("microservice2", "green"))},
+    "microservice3": {"blue" : ServiceState(status="idle", version=get_image_version("microservice3", "blue")), "green" : ServiceState(status="idle", version=get_image_version("microservice3", "green"))}
+}
 
 # ------------------- API VÉGPONTOK -------------------
 
@@ -357,8 +369,8 @@ async def get_services_status():
                 
         except Exception as e:
             logger.error(f"Hiba a konténer információk lekérésekor: {e}")
-            blue_version = state.get("version", "unknown")
-            green_version = state.get("version", "unknown")
+            blue_version = state["blue"].version
+            green_version = state["green"].version
         
         # Szolgáltatások hozzáadása a megfelelő slot-hoz
         slot_a_services.append({
@@ -376,7 +388,7 @@ async def get_services_status():
     # Slot A (blue) adat
     result["slot-a"] = [{
         "id": "slot-a",
-        "name": "Slot A",
+        "name": "Blue",
         "status": "active" if any(s["status"] == "healthy" for s in slot_a_services) else "inactive",
         "traffic": sum(weights.get(service, {}).get("blue", 0) for service in service_states) // len(service_states) if service_states else 0,
         "version": next((s["version"] for s in slot_a_services if s["version"] != "unknown"), "unknown"),
@@ -386,7 +398,7 @@ async def get_services_status():
     # Slot B (green) adat
     result["slot-b"] = [{
         "id": "slot-b",
-        "name": "Slot B",
+        "name": "Green",
         "status": "active" if any(s["status"] == "healthy" for s in slot_b_services) else "inactive",
         "traffic": sum(weights.get(service, {}).get("green", 0) for service in service_states) // len(service_states) if service_states else 0,
         "version": next((s["version"] for s in slot_b_services if s["version"] != "unknown"), "unknown"),
@@ -438,14 +450,14 @@ async def get_traffic_config():
                     "name": service_short_name,
                     "slots": [
                         {
-                            "id": "slot-a",
-                            "version": service_states.get(service_short_name, {}).get("version", "unknown"),
+                            "id": "blue",
+                            "version": service_states[service_short_name]["blue"].version,
                             "traffic": slot_a_weight,
                             "status": "healthy" if blue_info.get("health_check", False) else "warning"
                         },
                         {
-                            "id": "slot-b",
-                            "version": service_states.get(service_short_name, {}).get("version", "unknown"),
+                            "id": "green",
+                            "version": service_states[service_short_name]["green"].version,
                             "traffic": slot_b_weight,
                             "status": "healthy" if green_info.get("health_check", False) else "warning"
                         }
@@ -658,7 +670,7 @@ async def restart_service(service: str, slot: str):
     if slot not in ["blue", "green"]:
         raise HTTPException(status_code=400, detail="A slot csak 'blue' vagy 'green' lehet")
     
-    if service_states[service][slot] != "active":
+    if service_states[service][slot].status != "active":
         raise HTTPException(status_code=400, detail=f"A {service} szolgáltatás {slot} slotja nem aktív")
     
     if not docker_client:

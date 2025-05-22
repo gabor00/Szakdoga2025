@@ -6,8 +6,7 @@ from api.endpoints import health
 
 app = FastAPI(
     title="Microservice 3",
-    description="Harmadik mikroszolgáltatás a monorepo rendszerben",
-    version="0.1.0"
+    description="Harmadik mikroszolgáltatás a monorepo rendszerben"
 )
 
 # CORS beállítások
