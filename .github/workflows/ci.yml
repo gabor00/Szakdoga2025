@@ -25,4 +25,4 @@ jobs:
       
       - name: Log in to registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-      - run: INPUT_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} npx nx affected -t container --base=$NX_BASE --head=$NX_HEAD  --parallel=2 --exclude=dependecies
+      - run: INPUT_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} npx nx affected -t container --base=$NX_BASE --head=$NX_HEAD  --parallel=2 --exclude=dependencies
