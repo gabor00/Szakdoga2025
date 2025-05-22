@@ -3,9 +3,10 @@
 0. Legyen Docker Desktop a gépen, fusson és Node v20
 1. `git clone https://github.com/gabor00/Szakdoga2025` futtatása
 2. A fő könyvtárban futtasd az `npm i` parancsot
-3. `cd docker`
-4. `docker-compose up -d` futtatása
-5. Az alkalmazás elérhető a http://localhost-on
+3. A Dashboard mappában létre kell hozni egy .env fájlt és bele kell írni hogy `GITHUB_TOKEN = {secret_token}` (Különben nem lehet deployolni)
+4. `cd docker`
+5. `docker-compose up -d` futtatása
+6. Az alkalmazás elérhető a http://localhost-on
 
 
 ## Usage
