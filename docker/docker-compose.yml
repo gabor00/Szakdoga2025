@@ -42,7 +42,7 @@ services:
       - SERVICE_VERSION=0.1.0
       - DEPLOYMENT_SLOT=blue
     labels:
-      - "traefik.docker.network=szakdoga2025_traefik-network"  # A docker network ls által mutatott név
+      - "traefik.docker.network=szakdoga2025_traefik-network"  
       - "traefik.enable=true"
       - "traefik.http.routers.microservice1-blue.rule=PathPrefix(`/api/service1`) && Headers(`X-Deployment-Slot`, `blue`)"
       - "traefik.http.services.microservice1-blue.loadbalancer.server.port=8000"
@@ -100,7 +100,7 @@ services:
       - SERVICE_VERSION=0.1.0
       - DEPLOYMENT_SLOT=green
     labels:
-      - "traefik.docker.network=szakdoga2025_traefik-network"  # A docker network ls által mutatott név
+      - "traefik.docker.network=szakdoga2025_traefik-network"  
       - "traefik.enable=true"
       - "traefik.http.routers.microservice1-green.rule=PathPrefix(`/api/service1`) && Headers(`X-Deployment-Slot`, `green`)"
       - "traefik.http.services.microservice1-green.loadbalancer.server.port=8000"
@@ -181,7 +181,7 @@ services:
       - microservice2-green
       - microservice3-green
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost/api/deployment
+      - NEXT_PUBLIC_API_URL=http://localhost/api/deploy
     networks:
       - traefik-network
     ports: 

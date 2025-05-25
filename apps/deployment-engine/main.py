@@ -13,6 +13,7 @@ import requests
 from requests.exceptions import RequestException
 from git_watcher import GitWatcher
 from docker_manager import DockerManager
+import yaml
 
 # Logging beállítása
 logging.basicConfig(
@@ -199,7 +200,7 @@ async def deploy_service_with_github_image(service: str, version: str, slot: str
         # Konténer indítása az új image névvel és a megfelelő konténer névvel
         try:
             # Előző konténer leállítása és törlése
-            docker_manager._stop_container(service, slot)
+            docker_manager.stop_container(service, slot)
             
             container_name = f"szakdoga2025-{service}-{slot}"
             
@@ -302,7 +303,6 @@ async def get_services_status():
     
     # Traefik konfigurációs fájl beolvasása
     try:
-        import yaml
         config_file = "/etc/traefik/dynamic/services.yml"
         with open(config_file, 'r') as file:
             config = yaml.safe_load(file)
@@ -414,7 +414,6 @@ async def get_traffic_config():
     """Visszaadja a forgalom elosztás konfigurációját"""
     try:
         # Traefik konfigurációs fájl beolvasása
-        import yaml
         config_file = "/etc/traefik/dynamic/services.yml"
         with open(config_file, 'r') as file:
             config = yaml.safe_load(file)
@@ -623,9 +622,6 @@ async def configure_slots(request: SlotConfigurationRequest):
         # Traefik konfigurációs fájl útvonala
         config_dir = "/etc/traefik/dynamic"
         config_file = f"{config_dir}/services.yml"
-        
-        # PyYAML használata a YAML fájl módosításához
-        import yaml
         
         # Fájl betöltése
         with open(config_file, 'r') as file:

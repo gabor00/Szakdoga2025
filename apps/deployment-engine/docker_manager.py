@@ -84,7 +84,7 @@ class DockerManager:
         """Deploy a service to the specified slot."""
         try:
             # Stop existing container in the slot if any
-            self._stop_container(service_name, slot)
+            self.stop_container(service_name, slot)
         
             # Deploy new container
             logger.info(f"Deploying {image_name} to {service_name} {slot} slot")
@@ -97,7 +97,6 @@ class DockerManager:
                 "service": service_name,
                 "slot": slot,
                 "traefik.enable": "true",
-                f"traefik.http.routers.{container_name}.rule": f"PathPrefix(`/api/{service_name}`)",
                 f"traefik.http.routers.{container_name}.service": container_name,
                 f"traefik.http.services.{container_name}.loadbalancer.server.port": "8000"
             }
@@ -107,32 +106,17 @@ class DockerManager:
                 "SERVICE_NAME": service_name,
                 "SLOT": slot,
                 "VERSION": image_name.split(":")[-1],
-                "CONTAINER_NAME": container_name  # Adjuk hozzá a konténer nevét
+                "CONTAINER_NAME": container_name  
             }
         
-            # Hálózati beállítások
-            network_config = "microservices-network"
-        
-            # Volumenek és portok beállítása
-            volumes = {}  # Ha szükséges, add hozzá a megfelelő volumeneket
-            ports = {}    # Ha szükséges, add hozzá a megfelelő portokat
-        
-            logger.info(f"Konténer létrehozása: {container_name}, image: {image_name}")
-            logger.info(f"Környezeti változók: {environment}")
-        
-            # Create and start the container
             container = self.client.containers.run(
                 image=image_name,
                 name=container_name,
                 labels=labels,
                 detach=True,
-                network=network_config,
+                network= "szakdoga2025_traefik-network",
                 restart_policy={"Name": "unless-stopped"},
-                environment=environment,
-                volumes=volumes,
-                ports=ports,
-                # Örökölje a Docker image-ben definiált CMD/ENTRYPOINT-ot
-                command=None
+                environment=environment
             )
         
             logger.info(f"Container {container.name} created with ID {container.id}")
@@ -206,7 +190,7 @@ class DockerManager:
             result[service] = self.get_service_status(service)
         return result
         
-    def _stop_container(self, service_name: str, slot: str) -> bool:
+    def stop_container(self, service_name: str, slot: str) -> bool:
         """Stop and remove a container if it exists."""
         try:
             container_name = f"szakdoga2025-{service_name}-{slot}"
