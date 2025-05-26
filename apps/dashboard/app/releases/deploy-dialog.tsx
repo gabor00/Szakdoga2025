@@ -5,20 +5,20 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { deployRelease, fetchData } from "./actions"
+import { deployRelease} from "./actions"
 
 interface DeployDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   selectedRelease: string | null
   onSuccess: () => void
+  packagesData: Record<string, any>
 }
 
-export function DeployDialog({ open, onOpenChange, selectedRelease, onSuccess }: DeployDialogProps) {
+export function DeployDialog({ open, onOpenChange, selectedRelease, onSuccess, packagesData }: DeployDialogProps) {
   const [selectedSlot, setSelectedSlot] = useState("slot-a")
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(false)
-  const [packagesData, setPackagesData] = useState<Record<string, any>>({})
   const [availableServices, setAvailableServices] = useState<string[]>([])
   const [selectedServices, setSelectedServices] = useState({
     microservice1: true,
@@ -26,46 +26,13 @@ export function DeployDialog({ open, onOpenChange, selectedRelease, onSuccess }:
     microservice3: true
   })
 
-  // Service mapping for consistent naming
-  const serviceMapping = {
-    'microservice1': 'm1',
-    'microservice2': 'm2',
-    'microservice3': 'm3'
-  }
-
   useEffect(() => {
     if (open && selectedRelease) {
       setIsLoadingData(true)
-      
-      // Fetch data for each microservice
-      const fetchPackagesData = async () => {
-        try {
-          // Use the actual package names for API calls
-          const services = ['m1', 'm2', 'm3']
-          const results: Record<string, any> = {}
-          
-          await Promise.all(services.map(async (service) => {
-            try {
-              const data = await fetchData(service)
-              console.log(`Data for ${service}:`, data);
-              if (data && data.length > 0) {
-                console.log(`First package tags for ${service}:`, data[0].tags);
-              }
-              results[service] = data
-            } catch (error) {
-              console.error(`Error fetching data for ${service}:`, error)
-              results[service] = null
-            }
-          }))
-
-          
-          setPackagesData(results)
-          
-          // Determine which services have the selected version available
-          const available = Object.entries(results)
+        try {  
+          const available = Object.entries(packagesData)
             .filter(([_, data]) => data && data.some((pkg: any) => pkg.metadata.container.tags[0] == selectedRelease))
             .map(([service]) => {
-              // Map back to microservice names for UI consistency
               if (service === 'm1') return 'microservice1'
               if (service === 'm2') return 'microservice2'
               if (service === 'm3') return 'microservice3'
@@ -74,22 +41,16 @@ export function DeployDialog({ open, onOpenChange, selectedRelease, onSuccess }:
           
           setAvailableServices(available)
           
-          // Update selected services based on availability
           setSelectedServices({
             microservice1: available.includes('microservice1'),
             microservice2: available.includes('microservice2'),
             microservice3: available.includes('microservice3')
           })
-        } catch (error) {
-          console.error('Error fetching packages data:', error)
-        } finally {
+        }finally {
           setIsLoadingData(false)
         }
-      }
-      
-      fetchPackagesData()
     }
-  }, [open, selectedRelease])
+  }, [open, selectedRelease, packagesData])
 
   const handleServiceCheckboxChange = (service: string, checked: boolean) => {
     setSelectedServices(prev => ({
@@ -106,7 +67,7 @@ export function DeployDialog({ open, onOpenChange, selectedRelease, onSuccess }:
       .map(([service]) => service)
     
     if (servicesToDeploy.length === 0) {
-      alert("Please select at least one service")
+      alert("Válassz ki legalább egy microservice-t a deploy-hoz.")
       return
     }
     
@@ -122,12 +83,12 @@ export function DeployDialog({ open, onOpenChange, selectedRelease, onSuccess }:
         )
       )
       
-      alert(`Deployment started for services: ${servicesToDeploy.join(', ')}`)
+      alert(`A deployment elkezdődött: ${servicesToDeploy.join(', ')}`)
       onOpenChange(false)
       onSuccess()
     } catch (error) {
-      console.error('Error during deployments:', error)
-      alert('Error occurred during deployment')
+      console.error('Hiba a deployment közben:', error)
+      alert('Hiba a deployment közben. Kérlek próbáld újra később.')
     } finally {
       setIsLoading(false)
     }
@@ -229,7 +190,7 @@ export function DeployDialog({ open, onOpenChange, selectedRelease, onSuccess }:
             Cancel
           </Button>
           <Button onClick={handleConfirm} disabled={isLoading}>
-            {isLoading ? "Deploying..." : `Deploy to ${selectedSlot === "slot-a" ? "Slot Blue" : "Slot Green"}`}
+            {isLoading ? "Deploying..." : `Deploy a ${selectedSlot === "slot-a" ? "Slot Blue" : "Slot Green"}-en`}
           </Button>
         </DialogFooter>
       </DialogContent>

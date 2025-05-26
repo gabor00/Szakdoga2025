@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { ArrowDownUp, Save } from "lucide-react"
+import { fetchTraffic, updateTraffic } from "./actions"
 
 interface Slot {
   id: string;
@@ -39,9 +40,7 @@ export default function TrafficPage() {
 
   useEffect(() => {
     // Adatok lekérése a backendről
-     fetch('http://localhost:8100/traffic')
-    .then(res => res.json())
-    .then(data => {
+    fetchTraffic().then(data => {
       console.log('Traffic data:', data);
       // Ellenőrizzük, hogy a data egy tömb-e
       if (Array.isArray(data)) {
@@ -62,13 +61,13 @@ export default function TrafficPage() {
         );
         setTrafficValues(initialTraffic);
       } else {
-        console.error('Invalid traffic data format:', data);
+        console.error('Nem megfelelő traffic adat forma', data);
         setServices([]);
         setTrafficValues({});
       }
     })
     .catch(err => {
-      console.error('Error fetching traffic data:', err);
+      console.error('Hiba a ekérésben', err);
       setServices([]);
       setTrafficValues({});
     });
@@ -91,26 +90,16 @@ export default function TrafficPage() {
   };
 
   const handleConfirmApply = () => {
-    const promises = services.map(service => {
-      return fetch('http://localhost:8100/slot-config', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          service: service.name,
-          blue_percentage: trafficValues[service.id]["blue"],
-          green_percentage: trafficValues[service.id]["green"],
-        }),
-      });
-    });
+    const promises = services.map(service => 
+      updateTraffic(service.name, trafficValues[service.id]["blue"], trafficValues[service.id]["green"])
+    );
 
     Promise.all(promises)
       .then(() => {
-        console.log('Traffic configuration applied');
+        console.log('Traffic konfiguráció alkalmazva');
         setConfirmDialogOpen(false);
       })
-      .catch(err => console.error('Error applying traffic configuration:', err));
+      .catch(err => console.error('Hiba a traffic alkalmazásakor:', err));
   };
 
   const hasChanges = () => {
@@ -179,8 +168,8 @@ export default function TrafficPage() {
               <div className="mt-4 flex justify-between items-center">
                 <p className="text-sm text-muted-foreground">
                   {trafficValues[service.id]["blue"] === 0 || trafficValues[service.id]["green"] === 0
-                    ? "Single slot active"
-                    : "Traffic split between slots"}
+                    ? "Egyik slot 0%-os forgalmat kapott"
+                    : "Traffik forgalom elosztása a két slot között"}
                 </p>
                 <Button
                   variant="outline"

@@ -18,13 +18,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Alkalmazás fájlok másolása
 COPY . .
 
-# Git repository klónozása
-RUN git clone https://github.com/gabor00/Szakdoga2025.git /app/repo
-
 # Környezeti változók beállítása
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    GIT_REPO_PATH=/app/repo
+    GIT_REPO_URL="https://github.com/gabor00/Szakdoga2025"
 
 # Port nyitása
 EXPOSE 8000

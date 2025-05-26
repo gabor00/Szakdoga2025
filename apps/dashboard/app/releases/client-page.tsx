@@ -11,10 +11,11 @@ import { DeployDialog } from "./deploy-dialog"
 import { fetchReleases } from "./actions"
 
 interface ReleasesClientProps {
-  initialReleases: Release[]
+  initialReleases: Release[],
+  initalPackageData: Record<string, any>
 }
 
-export function ReleasesClient({ initialReleases }: ReleasesClientProps) {
+export function ReleasesClient({ initialReleases, initalPackageData }: ReleasesClientProps) {
   const [releases, setReleases] = useState<Release[]>(initialReleases)
   const [deployDialogOpen, setDeployDialogOpen] = useState(false)
   const [selectedRelease, setSelectedRelease] = useState<string | null>(null)
@@ -82,6 +83,7 @@ export function ReleasesClient({ initialReleases }: ReleasesClientProps) {
         open={deployDialogOpen}
         onOpenChange={setDeployDialogOpen}
         selectedRelease={selectedRelease}
+        packagesData={initalPackageData}
         onSuccess={refreshReleases}
       />
     </div>

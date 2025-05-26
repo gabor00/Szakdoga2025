@@ -1,13 +1,12 @@
 'use server'
 
-import { string } from 'zod';
 import { type GitHubTag, type Release } from './types'
 
 export async function fetchReleases(): Promise<Release[]> {
   try {    const response = await fetch('https://api.github.com/repos/gabor00/Szakdoga2025/tags', {
     cache: 'force-cache',  
     next: { 
-        revalidate: 600 // Cache for 10 minutes (600 seconds)
+        revalidate: 600 
       }
     });
     
@@ -18,18 +17,10 @@ export async function fetchReleases(): Promise<Release[]> {
     const tagsData = await response.json() as GitHubTag[];
     return tagsData.map((tag: GitHubTag) => ({
       tag: tag.name,
-      commit: tag.commit.sha.substring(0, 8),
-      status: "available",
-      date: new Date().toISOString(),
-      author: "Unknown",
-      changes: [
-        { service: "microservice1", type: "changed" },
-        { service: "microservice2", type: "changed" },
-        { service: "microservice3", type: "changed" }
-      ]
+      commit: tag.commit.sha.substring(0, 8)
     }));
   } catch (error) {
-    console.error("Error fetching releases:", error);
+    console.error("Hiba a lekérésben:", error);
     return [];
   }
 }
@@ -37,7 +28,7 @@ export async function fetchReleases(): Promise<Release[]> {
 export async function fetchData(packageName: string) { 
     const token = process.env.GITHUB_TOKEN;
     if (!token) {
-        throw new Error('GITHUB_TOKEN is not set in environment variables');
+        throw new Error('GITHUB_TOKEN nincs beállítva a környezeti változók között.');
     }
 
     try {
@@ -61,14 +52,14 @@ export async function fetchData(packageName: string) {
 
         return await response.json();
     } catch (error) {
-        console.error('Error fetching package data:', error);
+        console.error('Hiba a lekérésben:', error);
         throw error;
     }
 }
 
 export async function deployRelease(service: string, version: string, slot: 'blue' | 'green') {
   try {
-    const response = await fetch('http://szakdoga2025-deployment-engine:8000/deploy', {
+    const response = await fetch(`${process.env.DEPLOYMENT_ENGINE}/deploy`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -86,7 +77,7 @@ export async function deployRelease(service: string, version: string, slot: 'blu
 
     return await response.json();
   } catch (error) {
-    console.error('Error during deployment:', error);
+    console.error('Hiba a deployment-ben:', error);
     throw error;
   }
 }

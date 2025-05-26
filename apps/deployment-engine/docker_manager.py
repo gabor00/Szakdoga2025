@@ -8,32 +8,125 @@ from docker.errors import DockerException
 
 logger = logging.getLogger(__name__)
 
+GIT_REPO_URL = os.getenv("GIT_REPO_URL")
+NETWORK_NAME = "szakdoga2025_traefik-network"
+
 class DockerManager:
     def __init__(self):
         """Initialize Docker client."""
         self.client = docker.from_env()
 
-    def build_image(self, service_name: str, tag: str) -> Optional[str]:
-        """Build Docker image for a specific service."""
+    def init_network(self):
         try:
-            service_path = f"../apps/{service_name}"
-            image_name = f"{service_name}:{tag}"
-            logger.info(f"Building image {image_name} from {service_path}")
-            image, build_logs = self.client.images.build(
-                path=service_path,
-                tag=image_name,
-                rm=True
+            networks = self.client.networks.list(names=[NETWORK_NAME])
+            if not networks:
+                logger.info(f"Létrehozom a {NETWORK_NAME} hálózatot")
+                self.client.networks.create(NETWORK_NAME, driver="bridge")
+            else:
+                logger.info(f"A {NETWORK_NAME} hálózat már létezik")
+        except Exception as e:
+            logger.error(f"Hiba a hálózat létrehozásakor: {str(e)}")
+
+    def deploy_service_with_github_image(self, service: str, slot: str, version: str) -> bool:
+        """Szolgáltatás telepítése GitHub image-ből."""
+        new_image_name = f"szakdoga2025-{service}-{slot}"
+        
+        try:
+            repo_parts = GIT_REPO_URL.split('/')
+            owner = repo_parts[-2]
+            github_package_name = service.replace("microservice", "m")
+            package_image_name = f"ghcr.io/{owner}/{github_package_name}:{version}"
+            
+            logger.info(f"Pulling image: {package_image_name}")
+            self.client.images.pull(package_image_name)
+            logger.info(f"Image sikeresen letöltve: {package_image_name}")
+        except Exception as e:
+            logger.error(f"Hiba az image letöltésekor: {str(e)}")
+            return False
+        
+        try:
+            image = self.client.images.get(package_image_name)
+            image.tag(new_image_name, tag=version)
+            logger.info(f"Image átnevezve: {new_image_name}:{version}")
+        except Exception as e:
+            logger.error(f"Hiba az image átnevezésekor: {str(e)}")
+            return False
+        
+        try:
+            self.delete_container(service, slot)
+            
+            container_name = f"szakdoga2025-{service}-{slot}"
+            
+            labels = {
+                "service": service,
+                "slot": slot,
+                "traefik.enable": "true",
+                f"traefik.http.routers.{container_name}.rule": f"PathPrefix(`/api/{service}`)",
+                f"traefik.http.routers.{container_name}.service": container_name,
+                f"traefik.http.services.{container_name}.loadbalancer.server.port": "8000",
+                "com.docker.compose.project": "szakdoga2025", 
+                "szakdoga2025.group": "true"                  
+            }
+            
+            container = self.client.containers.run(
+                image=f"{new_image_name}:{version}",
+                name=container_name,
+                labels=labels,
+                detach=True,
+                network=NETWORK_NAME,
+                restart_policy={"Name": "unless-stopped"},
+                environment={
+                    "SERVICE_NAME": service,
+                    "DEPLOYMENT_SLOT": slot,
+                    "SERVICE_VERSION": version,
+                    "PROJECT": "szakdoga2025"  # Projekt név környezeti változóként
+                }
             )
-            for log in build_logs:
-                if 'stream' in log:
-                    logger.debug(log['stream'].strip())
-            return image_name
-        except DockerException as e:
-            logger.error(f"Error building image for {service_name}: {str(e)}")
-            return None
+            logger.info(f"Konténer elindítva: {container_name} ID: {container.id}")
+            return True
+        except Exception as e:
+            logger.error(f"Hiba a konténer indításakor: {str(e)}")
+            return False
+        
+    def get_container_info(self, container_name: str) -> Dict:
+        try:
+            container = self.client.containers.get(container_name)
+            container_exists = True
+            container_running = container.status == "running"
+            container_ip = None
+            if container_running:
+                networks = container.attrs['NetworkSettings']['Networks']
+                if 'traefik-network' in networks:
+                    container_ip = networks[NETWORK_NAME]['IPAddress']
+            return {
+                "exists": container_exists,
+                "running": container_running,
+                "ip_address": container_ip if container_running else None,
+            }
+        except Exception as e:
+            logger.warning(f"Nem sikerült lekérdezni a {container_name} konténer adatait: {e}")
+            return {
+                "exists": False,
+                "running": False,
+                "ip_address": None,
+            }
+                
+
+    def get_image_version(self, service: str, slot: str) -> Optional[str]:
+        """Visszaadja a konténer image verzióját"""
+        container_name = f"szakdoga2025-{service}-{slot}"
+        try:
+            container = self.client.containers.get(container_name)
+            if container and container.image.tags:
+                return container.image.tags[0].split(":")[-1]
+        except docker.errors.NotFound:
+            logger.warning(f"A {container_name} konténer nem található")
+        except Exception as e:
+            logger.error(f"Hiba a verzió lekérdezésekor: {e}")
+        return None
 
     def get_service_status(self, service_name: str) -> Dict:
-        """Get status information about a service's containers."""
+        """Konténer állapotának lekérése."""
         containers = self.client.containers.list(
             all=True,
             filters={
@@ -63,147 +156,65 @@ class DockerManager:
             }
         }
 
-    def get_inactive_slot(self, service_name: str) -> str:
-        """Determine which slot (blue/green) is currently inactive."""
-        status = self.get_service_status(service_name)
-        
-        # If blue is missing or stopped, use blue slot
-        if status['blue']['status'] in ['not_found', 'exited', 'dead']:
-            return 'blue'
-        # If green is missing or stopped, use green slot
-        elif status['green']['status'] in ['not_found', 'exited', 'dead']:
-            return 'green'
-        # If both are running, check container creation time and pick the older one
-        else:
-            if status['blue']['created'] < status['green']['created']:
-                return 'blue'
-            else:
-                return 'green'
-
-    def deploy_to_slot(self, service_name: str, image_name: str, slot: str) -> bool:
-        """Deploy a service to the specified slot."""
-        try:
-            # Stop existing container in the slot if any
-            self.stop_container(service_name, slot)
-        
-            # Deploy new container
-            logger.info(f"Deploying {image_name} to {service_name} {slot} slot")
-        
-            # Define container parameters
-            container_name = f"szakdoga2025-{service_name}-{slot}"
-        
-            # Traefik labels for routing
-            labels = {
-                "service": service_name,
-                "slot": slot,
-                "traefik.enable": "true",
-                f"traefik.http.routers.{container_name}.service": container_name,
-                f"traefik.http.services.{container_name}.loadbalancer.server.port": "8000"
-            }
-        
-            # Környezeti változók beállítása
-            environment = {
-                "SERVICE_NAME": service_name,
-                "SLOT": slot,
-                "VERSION": image_name.split(":")[-1],
-                "CONTAINER_NAME": container_name  
-            }
-        
-            container = self.client.containers.run(
-                image=image_name,
-                name=container_name,
-                labels=labels,
-                detach=True,
-                network= "szakdoga2025_traefik-network",
-                restart_policy={"Name": "unless-stopped"},
-                environment=environment
-            )
-        
-            logger.info(f"Container {container.name} created with ID {container.id}")
-            return True
-        except docker.errors.ImageNotFound as e:
-            logger.error(f"Image not found: {image_name} - {str(e)}")
-            return False
-        except docker.errors.APIError as e:
-            logger.error(f"Docker API error: {str(e)}")
-            return False
-        except Exception as e:
-            logger.error(f"Error deploying {service_name} to {slot} slot: {str(e)}")
-            return False
-
-
-    def update_traefik_config(self, service_name: str, blue_weight: int, green_weight: int) -> bool:
-        """Update Traefik configuration to balance traffic between slots."""
-        try:
-            # Create Traefik dynamic configuration
-            blue_container_name = f"szakdoga2025-{service_name}-blue"
-            green_container_name = f"szakdoga2025-{service_name}-green"
-            
-            # Update container labels for Traefik routing weights
-            containers = self.client.containers.list(
-                filters={"label": f"service={service_name}"}
-            )
-            
-            for container in containers:
-                if container.labels.get('slot') == 'blue':
-                    container.update(labels={
-                        **container.labels,
-                        f"traefik.http.services.{service_name}.weighted.services.{blue_container_name}.weight": str(blue_weight)
-                    })
-                elif container.labels.get('slot') == 'green':
-                    container.update(labels={
-                        **container.labels,
-                        f"traefik.http.services.{service_name}.weighted.services.{green_container_name}.weight": str(green_weight)
-                    })
-            
-            return True
-        except DockerException as e:
-            logger.error(f"Error updating Traefik config for {service_name}: {str(e)}")
-            return False
 
     def restart_service(self, service_name: str, slot: str) -> bool:
-        """Restart a service in the specified slot."""
+        """Szolgáltatás újraindítása."""
         try:
             container_name = f"szakdoga2025-{service_name}-{slot}"
-            containers = self.client.containers.list(
-                all=True,
-                filters={"name": container_name}
-            )
-            
-            if not containers:
-                logger.error(f"Container {container_name} not found")
-                return False
-            
-            container = containers[0]
-            logger.info(f"Restarting container {container_name}")
+            container = self.client.containers.get(container_name)
+            logger.info(f"Konténer újraindítása {container_name}")
             container.restart(timeout=10)
             return True
         except DockerException as e:
-            logger.error(f"Error restarting {service_name} {slot} slot: {str(e)}")
+            logger.error(f"Hiba az újraindításban {service_name} {slot} slot: {str(e)}")
             return False
-
-    def get_all_services_status(self) -> Dict:
-        """Get status information about all services."""
-        services = ['m1', 'm2', 'm3']
-        result = {}
-        for service in services:
-            result[service] = self.get_service_status(service)
-        return result
         
-    def stop_container(self, service_name: str, slot: str) -> bool:
-        """Stop and remove a container if it exists."""
+    def delete_container(self, service_name: str, slot: str) -> bool:
+        """Konténer törlése."""
         try:
             container_name = f"szakdoga2025-{service_name}-{slot}"
             try:
                 container = self.client.containers.get(container_name)
-                logger.info(f"Stopping container {container_name}")
+                logger.info(f"Konténer törlése {container_name}")
                 container.stop(timeout=10)
-                logger.info(f"Removing container {container_name}")
+                logger.info(f"Konténer törlése {container_name}")
                 container.remove()
                 return True
             except docker.errors.NotFound:
-                logger.info(f"Container {container_name} not found, nothing to stop")
+                logger.info(f"Konténer {container_name} nem található, nincs mit törölni")
                 return True
         except Exception as e:
-            logger.error(f"Error stopping container {service_name}-{slot}: {str(e)}")
+            logger.error(f"Hiba a leállításban {service_name}-{slot}: {str(e)}")
+            return False
+
+    def stop_container(self, service_name: str, slot: str) -> bool:
+        """Konténer leállítása, ha fut."""
+        try:
+            container_name = f"szakdoga2025-{service_name}-{slot}"
+            container = self.client.containers.get(container_name)
+            if container.status == "running":
+                logger.info(f"Konténer leállítása {container_name}")
+                container.stop(timeout=10)
+                return True
+            else:
+                logger.info(f"Konténer {container_name} nem fut, nincs mit leállítani")
+                return True
+        except Exception as e:
+            logger.error(f"Hiba a leálításban {service_name}-{slot}: {str(e)}")
+            return False
+        
+    def start_container(self, service_name: str, slot: str) -> bool:
+        """Konténer indítása, ha leállt."""
+        try:
+            container_name = f"szakdoga2025-{service_name}-{slot}"
+            container = self.client.containers.get(container_name)
+            if container.status != "running":
+                logger.info(f"Konténer indítása {container_name}")
+                container.start()
+                return True
+            else:
+                logger.info(f"Konténer {container_name} nemm található, nincs mit indítani")
+                return True
+        except Exception as e:
+            logger.error(f"Hiba az indításban {service_name}-{slot}: {str(e)}")
             return False

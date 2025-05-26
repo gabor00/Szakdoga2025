@@ -3,8 +3,12 @@
 0. Legyen Docker Desktop a gépen, fusson és Node v20
 1. `git clone https://github.com/gabor00/Szakdoga2025` futtatása
 2. A fő könyvtárban futtasd az `npm i` parancsot
-3. a hosts fájlva fel kell venni a 127.0.0.1-re a microservice1-2-3.com-okat
-4. A Dashboard mappában létre kell hozni egy .env fájlt és bele kell írni hogy `GITHUB_TOKEN = {secret_token}` (Különben nem lehet deployolni)
+3. A C:\Windows\System32\drivers\etc\hosts fájlba fel kell venni:
+`127.0.0.1 microservice1.com`
+`127.0.0.1 microservice2.com`
+`127.0.0.1 microservice3.com`
+4. A Dashboard mappában létre kell hozni egy .env fájlt és bele kell írni hogy `GITHUB_TOKEN = {secret_token}` és hogy 
+`DEPLOYMENT_ENGINE = http://szakdoga2025-deployment-engine:8000` (Különben nem lehet deployolni)
 5. `cd docker`
 6. `docker-compose up -d` futtatása
 7. Az alkalmazás elérhető a http://localhost-on
