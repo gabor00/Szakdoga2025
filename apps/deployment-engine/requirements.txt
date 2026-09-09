@@ -4,6 +4,6 @@ pydantic>=2.7.0
 pydantic-settings==2.9.1
 python-dotenv==1.0.0
 docker==7.1.0
-GitPython==3.1.44
+GitPython==3.1.59
 httpx==0.28.1
 requests==2.33.0
