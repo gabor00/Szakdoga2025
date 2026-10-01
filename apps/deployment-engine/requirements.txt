@@ -2,7 +2,7 @@ fastapi==0.103.1
 uvicorn==0.23.2
 pydantic>=2.7.0
 pydantic-settings==2.9.1
-python-dotenv==1.0.0
+python-dotenv==1.2.2
 docker==7.1.0
 GitPython==3.1.59
 httpx==0.28.1
